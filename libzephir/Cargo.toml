@@ -1,0 +1,9 @@
+[package]
+name = "libzephir"
+version = "0.1.0"
+authors = ["Alessandro Chitolina <alekitto@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+regex = "1"
+serde_json = "1.0"
