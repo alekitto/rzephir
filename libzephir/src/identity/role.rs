@@ -5,7 +5,7 @@ use crate::policy::PolicyEffect;
 use serde_json::Value;
 use std::fmt::Display;
 
-pub(in super) fn allowed<T, S>(
+pub(super) fn allowed<T, S>(
     policies: Vec<&CompletePolicy>,
     action: Option<T>,
     resource: Option<S>,
@@ -42,9 +42,9 @@ pub trait Role: Into<Value> {
     fn linked_policies(&self) -> &PolicySet<CompletePolicy>;
 
     fn allowed<T, S>(&self, action: Option<T>, resource: Option<S>) -> AllowedResult
-        where
-            T: ToString + Display,
-            S: ToString + Display,
+    where
+        T: ToString + Display,
+        S: ToString + Display,
     {
         let mut policies = vec![];
         let linked_policies = self.linked_policies();
@@ -64,11 +64,11 @@ pub trait Role: Into<Value> {
 mod tests {
     use crate::identity::role::{allowed, Role};
     use crate::policy::allowed_result::AllowedOutcome;
-    use crate::policy::policy::{PartialPolicy, ToJson, CompletePolicy};
+    use crate::policy::policy::{CompletePolicy, PartialPolicy, ToJson};
+    use crate::policy::policy_set::{PolicySet, PolicySetTrait};
     use crate::policy::{PolicyEffect, PolicyVersion};
     use crate::zephir_policy;
     use serde_json::{Map, Value};
-    use crate::policy::policy_set::{PolicySet, PolicySetTrait};
 
     struct ConcreteRole {
         policy_set: PolicySet<CompletePolicy>,
@@ -184,30 +184,66 @@ mod tests {
 
         let mut json = Map::new();
         json.insert(String::from("outcome"), Value::from("DENIED"));
-        json.insert(String::from("partials"), Value::from(Vec::<PartialPolicy>::new()));
+        json.insert(
+            String::from("partials"),
+            Value::from(Vec::<PartialPolicy>::new()),
+        );
         assert_eq!(res.to_json(), json);
     }
 
     #[test]
     fn allowed_should_work_correctly() {
         let ps = PolicySet::new()
-            .add_policy(zephir_policy!(String::from("RoleTestPolicy"), PolicyVersion::Version1, PolicyEffect::Allow, vec![String::from("TestAction")]).unwrap())
-            .add_policy(zephir_policy!(String::from("RoleTestPolicy2"), PolicyVersion::Version1, PolicyEffect::Deny, vec![String::from("TestAction")], vec![String::from("urn:resource:test-class-deny:*")]).unwrap())
-            .add_policy(zephir_policy!(String::from("RoleTestPolicy3"), PolicyVersion::Version1, PolicyEffect::Allow, vec![String::from("FooAction")], vec![String::from("urn:resource:test-class:*")]).unwrap());
+            .add_policy(
+                zephir_policy!(
+                    String::from("RoleTestPolicy"),
+                    PolicyVersion::Version1,
+                    PolicyEffect::Allow,
+                    vec![String::from("TestAction")]
+                )
+                .unwrap(),
+            )
+            .add_policy(
+                zephir_policy!(
+                    String::from("RoleTestPolicy2"),
+                    PolicyVersion::Version1,
+                    PolicyEffect::Deny,
+                    vec![String::from("TestAction")],
+                    vec![String::from("urn:resource:test-class-deny:*")]
+                )
+                .unwrap(),
+            )
+            .add_policy(
+                zephir_policy!(
+                    String::from("RoleTestPolicy3"),
+                    PolicyVersion::Version1,
+                    PolicyEffect::Allow,
+                    vec![String::from("FooAction")],
+                    vec![String::from("urn:resource:test-class:*")]
+                )
+                .unwrap(),
+            );
 
-        let role = ConcreteRole {
-            policy_set: ps,
-        };
+        let role = ConcreteRole { policy_set: ps };
 
-        let result = role.allowed(Option::Some("TestAction"), Option::Some("urn:resource:test-class-allow:test-id"));
+        let result = role.allowed(
+            Option::Some("TestAction"),
+            Option::Some("urn:resource:test-class-allow:test-id"),
+        );
         assert_eq!(result.outcome(), AllowedOutcome::Allowed);
         assert_eq!(result.get_partials().len(), 0);
 
-        let result = role.allowed(Option::Some("TestAction"), Option::Some("urn:resource:test-class-deny:test-id"));
+        let result = role.allowed(
+            Option::Some("TestAction"),
+            Option::Some("urn:resource:test-class-deny:test-id"),
+        );
         assert_eq!(result.outcome(), AllowedOutcome::Denied);
         assert_eq!(result.get_partials().len(), 0);
 
-        let result = role.allowed(Option::Some("FooAction"), Option::Some("urn:resource:test-class-deny:test-id"));
+        let result = role.allowed(
+            Option::Some("FooAction"),
+            Option::Some("urn:resource:test-class-deny:test-id"),
+        );
         assert_eq!(result.outcome(), AllowedOutcome::Denied);
         assert_eq!(result.get_partials().len(), 0);
 
