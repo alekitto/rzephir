@@ -3,4 +3,4 @@ ignore-not-existing: true
 llvm: true
 filter: covered
 output-type: lcov
-output-path: ./libzephir-lcov.info
+output-path: ./lcov.info
