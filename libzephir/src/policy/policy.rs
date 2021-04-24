@@ -1,10 +1,9 @@
 use crate::compiler::compiled_policy::CompiledPolicy;
 use crate::compiler::compiler::Compiler;
-use crate::err::ActionsCannotBeEmptyError;
+use crate::err::Error;
 use crate::policy::match_result::MatchResult;
 use crate::policy::{PolicyEffect, PolicyVersion};
 use serde_json::{Map, Value};
-use std::error::Error;
 
 pub trait ToJson {
     /// Return a JSON value representing the policy
@@ -14,11 +13,20 @@ pub trait ToJson {
     fn to_json_string(&self) -> String {
         serde_json::to_string(&self.to_json()).unwrap()
     }
+
+    /// Performs the conversion.
+    fn to_value(&self) -> Value {
+        Value::from(self.to_json())
+    }
 }
 
 /// Policy trait.
 /// This is the main common interface for all the policy implementations
 pub trait Policy: ToJson {
+    fn id(&self) -> &String {
+        unimplemented!()
+    }
+
     /// Return true if the policy is complete.
     ///
     /// The evaluation result will return "ALLOWED" or "DENIED" if
@@ -81,6 +89,12 @@ impl PartialPolicy {
     }
 }
 
+impl Into<Value> for PartialPolicy {
+    fn into(self) -> Value {
+        self.to_value()
+    }
+}
+
 impl ToJson for PartialPolicy {
     fn to_json(&self) -> Map<String, Value> {
         let mut result = Map::new();
@@ -113,6 +127,7 @@ impl Policy for PartialPolicy {
 
 /// Represents a complete policy which can be matched completely
 pub struct CompletePolicy {
+    pub id: String,
     pub version: PolicyVersion,
     pub effect: PolicyEffect,
     actions: Vec<String>,
@@ -124,17 +139,18 @@ pub struct CompletePolicy {
 impl CompletePolicy {
     /// Get a new policy object
     pub fn new<A, R>(
+        id: String,
         version: PolicyVersion,
         effect: PolicyEffect,
         actions: Vec<A>,
         resources: Vec<R>,
-    ) -> Result<CompletePolicy, impl Error>
+    ) -> Result<CompletePolicy, Error>
     where
         A: ToString,
         R: ToString,
     {
         if actions.is_empty() {
-            return Err(ActionsCannotBeEmptyError::new());
+            return Err(Error::actions_cannot_be_empty());
         }
 
         let resources = if resources.is_empty() {
@@ -147,6 +163,7 @@ impl CompletePolicy {
         let compiled_policy = Compiler::compile(&actions, &resources);
 
         Ok(CompletePolicy {
+            id,
             version,
             effect,
             actions,
@@ -157,6 +174,10 @@ impl CompletePolicy {
 }
 
 impl Policy for CompletePolicy {
+    fn id(&self) -> &String {
+        &self.id
+    }
+
     fn complete(&self) -> bool {
         true
     }
@@ -169,6 +190,7 @@ impl Policy for CompletePolicy {
 impl ToJson for CompletePolicy {
     fn to_json(&self) -> Map<String, Value> {
         let mut result = Map::new();
+        result.insert(String::from("id"), Value::from(self.id.clone()));
         result.insert(String::from("version"), Value::from(&self.version));
         result.insert(
             String::from("effect"),
@@ -217,6 +239,8 @@ impl MatchablePolicy for CompletePolicy {
             }
         }
 
+        // @todo: Conditions
+
         result
     }
 
@@ -231,12 +255,13 @@ impl MatchablePolicy for CompletePolicy {
 
 #[macro_export]
 macro_rules! zephir_policy {
-    ( $version:expr, $effect:expr, $actions:expr, $resources:expr ) => {{
-        let temp_policy = $crate::policy::policy_new($version, $effect, $actions, $resources);
+    ( $id:expr, $version:expr, $effect:expr, $actions:expr, $resources:expr ) => {{
+        let temp_policy = $crate::policy::policy_new($id.into(), $version, $effect, $actions, $resources);
         temp_policy
     }};
-    ( $version:expr, $effect:expr, $actions:expr ) => {{
+    ( $id:expr, $version:expr, $effect:expr, $actions:expr ) => {{
         $crate::zephir_policy!(
+            $id,
             $version,
             $effect,
             $actions,
@@ -247,7 +272,6 @@ macro_rules! zephir_policy {
 
 #[cfg(test)]
 mod tests {
-    use crate::policy::match_result::{ResultOutcome, ResultType};
     use crate::policy::policy::{MatchablePolicy, Policy, ToJson};
     use crate::policy::{PolicyEffect, PolicyVersion};
     use crate::zephir_policy;
@@ -255,6 +279,7 @@ mod tests {
     #[test]
     fn complete_policy_could_be_created() {
         let p = zephir_policy!(
+            "TestPolicy",
             PolicyVersion::Version1,
             PolicyEffect::Deny,
             vec!["core:GetVersion", "test:GetResource"]
@@ -264,12 +289,13 @@ mod tests {
         assert_eq!(p.complete(), true);
         assert_eq!(p.resources, vec!["*"]);
         assert_eq!(p.actions, vec!["core:GetVersion", "test:GetResource"]);
-        assert_eq!(p.to_json_string(), "{\"actions\":[\"core:GetVersion\",\"test:GetResource\"],\"effect\":\"DENY\",\"resources\":[\"*\"],\"version\":1}");
+        assert_eq!(p.to_json_string(), "{\"actions\":[\"core:GetVersion\",\"test:GetResource\"],\"effect\":\"DENY\",\"id\":\"TestPolicy\",\"resources\":[\"*\"],\"version\":1}");
     }
 
     #[test]
     fn policy_creation_should_return_err_if_actions_are_empty() {
         let result = zephir_policy!(
+            "TestPolicy",
             PolicyVersion::Version1,
             PolicyEffect::Allow,
             vec![] as Vec<String>
@@ -277,27 +303,28 @@ mod tests {
         .err()
         .unwrap();
 
-        assert_eq!(result.to_string(), "Actions vector cannot be empty");
+        assert_eq!(result.to_string(), "Actions set cannot be empty");
     }
 
     #[test]
     fn policy_matching_should_work_if_policy_contains_all_actions() {
         let policy =
-            zephir_policy!(PolicyVersion::Version1, PolicyEffect::Allow, vec!["*"]).unwrap();
+            zephir_policy!("TestPolicy", PolicyVersion::Version1, PolicyEffect::Allow, vec!["*"]).unwrap();
         let result = policy.matching(Some("TestAction"), Some("urn::resource:test"));
 
-        assert_eq!(result.outcome, ResultOutcome::Match);
-        assert_eq!(result.result_type, ResultType::Full);
+        assert_eq!(result.is_match(), true);
+        assert_eq!(result.is_full(), true);
 
         let result = policy.matching(Some("FooAction"), Some("urn::resource:test"));
 
-        assert_eq!(result.outcome, ResultOutcome::Match);
-        assert_eq!(result.result_type, ResultType::Full);
+        assert_eq!(result.is_match(), true);
+        assert_eq!(result.is_full(), true);
     }
 
     #[test]
     fn policy_matching_should_work_with_actions_star_glob() {
         let policy = zephir_policy!(
+            "TestPolicy",
             PolicyVersion::Version1,
             PolicyEffect::Allow,
             vec!["*Action"]
@@ -305,23 +332,19 @@ mod tests {
         .unwrap();
         let result = policy.matching(Some("FooAction"), Some("urn::resource:test"));
 
-        assert_eq!(result.outcome, ResultOutcome::Match);
-        assert_eq!(result.result_type, ResultType::Full);
+        assert_eq!(result.is_match(), true);
+        assert_eq!(result.is_full(), true);
 
         let result = policy.matching(Some("FooBar"), Some("urn::resource:test"));
 
-        assert_eq!(result.outcome, ResultOutcome::NotMatch);
-        assert_eq!(result.result_type, ResultType::Full);
+        assert_eq!(result.is_match(), false);
+        assert_eq!(result.is_full(), true);
     }
 
     #[test]
     fn policy_matching_should_work_with_actions_question_mark_glob() {
-        let policy = zephir_policy!(
-            PolicyVersion::Version1,
-            PolicyEffect::Allow,
-            vec!["Foo?ar"]
-        )
-        .unwrap();
+        let policy =
+            zephir_policy!("TestPolicy", PolicyVersion::Version1, PolicyEffect::Allow, vec!["Foo?ar"]).unwrap();
 
         let result = policy.matching(Some("FooAction"), Some("urn::resource:test"));
         assert_eq!(result.is_match(), false);
@@ -339,16 +362,24 @@ mod tests {
 
     #[test]
     fn matching_should_return_a_partial_policy() {
-        let policy = zephir_policy!(PolicyVersion::Version1, PolicyEffect::Allow, vec!["*"]).unwrap();
+        let policy =
+            zephir_policy!("TestPolicy", PolicyVersion::Version1, PolicyEffect::Allow, vec!["*"]).unwrap();
         let m = policy.matching(Some("TestAction"), None as Option<String>);
-        assert_eq!(m.result_type, ResultType::Full);
+        assert_eq!(m.is_full(), true);
 
-        let policy = zephir_policy!(PolicyVersion::Version1, PolicyEffect::Allow, vec!["TestAction"], vec!["urn:resource:test"]).unwrap();
+        let policy = zephir_policy!(
+            "TestPolicy",
+            PolicyVersion::Version1,
+            PolicyEffect::Allow,
+            vec!["TestAction"],
+            vec!["urn:resource:test"]
+        )
+        .unwrap();
         let m = policy.matching(Some("NoAction"), None as Option<String>);
-        assert_eq!(m.result_type, ResultType::Full);
+        assert_eq!(m.is_full(), true);
 
         let m = policy.matching(Some("TestAction"), None as Option<String>);
-        assert_eq!(m.result_type, ResultType::Partial);
+        assert_eq!(m.is_full(), false);
 
         let partial = m.get_partial();
         assert_eq!(partial.complete(), false);
@@ -358,10 +389,16 @@ mod tests {
         let resources = partial.resources.as_ref();
         assert_eq!(resources.is_some(), true);
         assert_eq!(*resources.unwrap(), vec!["urn:resource:test".to_string()]);
-        assert_eq!(partial.to_json_string(), "{\"effect\":\"ALLOW\",\"resources\":[\"urn:resource:test\"],\"version\":1}");
+        assert_eq!(
+            partial.to_json_string(),
+            "{\"effect\":\"ALLOW\",\"resources\":[\"urn:resource:test\"],\"version\":1}"
+        );
 
         let m = policy.matching(None as Option<String>, Some("urn:resource:test"));
         let partial = m.get_partial();
-        assert_eq!(partial.to_json_string(), "{\"actions\":[\"TestAction\"],\"effect\":\"ALLOW\",\"version\":1}");
+        assert_eq!(
+            partial.to_json_string(),
+            "{\"actions\":[\"TestAction\"],\"effect\":\"ALLOW\",\"version\":1}"
+        );
     }
 }

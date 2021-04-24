@@ -1,24 +1,26 @@
-use crate::err::UnknownPolicyVersionError;
+use crate::err::Error;
 use crate::policy::policy::CompletePolicy;
 use serde_json::{Number, Value};
 use std::convert::TryFrom;
-use std::error::Error;
 
+pub mod allowed_result;
 pub mod match_result;
 pub mod policy;
+pub mod policy_set;
 
 /// Get a new policy object
 pub fn policy_new<A, R>(
+    id: String,
     version: PolicyVersion,
     effect: PolicyEffect,
     actions: Vec<A>,
     resources: Vec<R>,
-) -> Result<CompletePolicy, impl Error>
+) -> Result<CompletePolicy, Error>
 where
     A: ToString,
     R: ToString,
 {
-    CompletePolicy::new(version, effect, actions, resources)
+    CompletePolicy::new(id, version, effect, actions, resources)
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -27,12 +29,12 @@ pub enum PolicyVersion {
 }
 
 impl TryFrom<i32> for PolicyVersion {
-    type Error = UnknownPolicyVersionError;
+    type Error = Error;
 
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         match value {
             1 => Ok(PolicyVersion::Version1),
-            _ => Err(UnknownPolicyVersionError::new(value)),
+            _ => Err(Error::unknown_policy_version(value)),
         }
     }
 }
