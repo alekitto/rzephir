@@ -256,7 +256,8 @@ impl MatchablePolicy for CompletePolicy {
 #[macro_export]
 macro_rules! zephir_policy {
     ( $id:expr, $version:expr, $effect:expr, $actions:expr, $resources:expr ) => {{
-        let temp_policy = $crate::policy::policy_new($id.into(), $version, $effect, $actions, $resources);
+        let temp_policy =
+            $crate::policy::policy_new($id.into(), $version, $effect, $actions, $resources);
         temp_policy
     }};
     ( $id:expr, $version:expr, $effect:expr, $actions:expr ) => {{
@@ -308,8 +309,13 @@ mod tests {
 
     #[test]
     fn policy_matching_should_work_if_policy_contains_all_actions() {
-        let policy =
-            zephir_policy!("TestPolicy", PolicyVersion::Version1, PolicyEffect::Allow, vec!["*"]).unwrap();
+        let policy = zephir_policy!(
+            "TestPolicy",
+            PolicyVersion::Version1,
+            PolicyEffect::Allow,
+            vec!["*"]
+        )
+        .unwrap();
         let result = policy.matching(Some("TestAction"), Some("urn::resource:test"));
 
         assert_eq!(result.is_match(), true);
@@ -343,8 +349,13 @@ mod tests {
 
     #[test]
     fn policy_matching_should_work_with_actions_question_mark_glob() {
-        let policy =
-            zephir_policy!("TestPolicy", PolicyVersion::Version1, PolicyEffect::Allow, vec!["Foo?ar"]).unwrap();
+        let policy = zephir_policy!(
+            "TestPolicy",
+            PolicyVersion::Version1,
+            PolicyEffect::Allow,
+            vec!["Foo?ar"]
+        )
+        .unwrap();
 
         let result = policy.matching(Some("FooAction"), Some("urn::resource:test"));
         assert_eq!(result.is_match(), false);
@@ -362,8 +373,13 @@ mod tests {
 
     #[test]
     fn matching_should_return_a_partial_policy() {
-        let policy =
-            zephir_policy!("TestPolicy", PolicyVersion::Version1, PolicyEffect::Allow, vec!["*"]).unwrap();
+        let policy = zephir_policy!(
+            "TestPolicy",
+            PolicyVersion::Version1,
+            PolicyEffect::Allow,
+            vec!["*"]
+        )
+        .unwrap();
         let m = policy.matching(Some("TestAction"), None as Option<String>);
         assert_eq!(m.is_full(), true);
 

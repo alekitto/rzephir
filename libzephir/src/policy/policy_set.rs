@@ -1,16 +1,21 @@
-use crate::policy::policy::{Policy, CompletePolicy};
+use crate::policy::policy::{CompletePolicy, Policy};
 use std::cmp::Ordering;
 use std::slice::Iter;
 
-pub(crate) struct PolicySetHelper {
-}
+pub(crate) struct PolicySetHelper {}
 
 impl PolicySetHelper {
-    pub(crate) fn link_policy(policy_set: PolicySet<CompletePolicy>, policy: CompletePolicy) -> PolicySet<CompletePolicy> {
+    pub(crate) fn link_policy(
+        policy_set: PolicySet<CompletePolicy>,
+        policy: CompletePolicy,
+    ) -> PolicySet<CompletePolicy> {
         policy_set.add_policy(policy)
     }
 
-    pub(crate) fn unlink_policy<S: ToString>(policy_set: PolicySet<CompletePolicy>, policy: S) -> PolicySet<CompletePolicy> {
+    pub(crate) fn unlink_policy<S: ToString>(
+        policy_set: PolicySet<CompletePolicy>,
+        policy: S,
+    ) -> PolicySet<CompletePolicy> {
         policy_set.remove_policy(policy.to_string())
     }
 }
@@ -21,9 +26,7 @@ pub struct PolicySet<T: Policy> {
 
 impl<T: Policy> PolicySet<T> {
     pub fn new() -> Self {
-        PolicySet {
-            policies: vec![]
-        }
+        PolicySet { policies: vec![] }
     }
 
     pub fn len(&self) -> usize {
@@ -31,13 +34,14 @@ impl<T: Policy> PolicySet<T> {
     }
 
     fn insert_if_missing(policies: &mut Vec<T>, policy: T) {
-        match policies.iter_mut().find(|ref p| p.id().cmp(policy.id()) == Ordering::Equal) {
+        match policies
+            .iter_mut()
+            .find(|ref p| p.id().cmp(policy.id()) == Ordering::Equal)
+        {
             Some(_) => {
                 return;
             }
-            None => {
-                policies.push(policy)
-            }
+            None => policies.push(policy),
         }
     }
 }
@@ -54,7 +58,9 @@ impl<T: Policy> PolicySetTrait<T> for PolicySet<T> {
     }
 
     fn remove_policy<S: ToString>(mut self, id: S) -> Self {
-        self.policies = self.policies.into_iter()
+        self.policies = self
+            .policies
+            .into_iter()
             .filter(|p| p.id().cmp(&id.to_string()) != Ordering::Equal)
             .collect();
 
@@ -73,10 +79,10 @@ impl<'a, T: Policy> IntoIterator for &'a PolicySet<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::zephir_policy;
-    use crate::policy::policy_set::{PolicySet, PolicySetTrait};
     use crate::policy::policy::CompletePolicy;
-    use crate::policy::{PolicyVersion, PolicyEffect};
+    use crate::policy::policy_set::{PolicySet, PolicySetTrait};
+    use crate::policy::{PolicyEffect, PolicyVersion};
+    use crate::zephir_policy;
 
     #[test]
     fn should_be_created_empty() {
@@ -87,7 +93,15 @@ mod tests {
     #[test]
     fn policies_can_be_added() {
         let mut ps: PolicySet<CompletePolicy> = PolicySet::new();
-        ps = ps.add_policy(zephir_policy!("p1", PolicyVersion::Version1, PolicyEffect::Allow, vec!["action"]).unwrap());
+        ps = ps.add_policy(
+            zephir_policy!(
+                "p1",
+                PolicyVersion::Version1,
+                PolicyEffect::Allow,
+                vec!["action"]
+            )
+            .unwrap(),
+        );
 
         let ps_ref = &ps;
         let policies: Vec<&CompletePolicy> = ps_ref.into_iter().collect();
@@ -99,14 +113,41 @@ mod tests {
     #[test]
     fn policies_can_be_removed_by_id() {
         let mut ps: PolicySet<CompletePolicy> = PolicySet::new();
-        ps = ps.add_policy(zephir_policy!("p1", PolicyVersion::Version1, PolicyEffect::Allow, vec!["action"]).unwrap());
-        ps = ps.add_policy(zephir_policy!("p2", PolicyVersion::Version1, PolicyEffect::Allow, vec!["action"]).unwrap());
-        ps = ps.add_policy(zephir_policy!("p3", PolicyVersion::Version1, PolicyEffect::Allow, vec!["action"]).unwrap());
+        ps = ps.add_policy(
+            zephir_policy!(
+                "p1",
+                PolicyVersion::Version1,
+                PolicyEffect::Allow,
+                vec!["action"]
+            )
+            .unwrap(),
+        );
+        ps = ps.add_policy(
+            zephir_policy!(
+                "p2",
+                PolicyVersion::Version1,
+                PolicyEffect::Allow,
+                vec!["action"]
+            )
+            .unwrap(),
+        );
+        ps = ps.add_policy(
+            zephir_policy!(
+                "p3",
+                PolicyVersion::Version1,
+                PolicyEffect::Allow,
+                vec!["action"]
+            )
+            .unwrap(),
+        );
 
         ps = ps.remove_policy("p2");
 
         let ps_ref = &ps;
-        let policies: Vec<String> = ps_ref.into_iter().map(|p: &CompletePolicy| p.id.clone()).collect();
+        let policies: Vec<String> = ps_ref
+            .into_iter()
+            .map(|p: &CompletePolicy| p.id.clone())
+            .collect();
 
         assert_eq!(policies.len(), 2);
         assert_eq!(policies, vec!["p1", "p3"]);

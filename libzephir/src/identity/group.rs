@@ -1,10 +1,10 @@
 use crate::identity::identity::{Identity, ToIdentityId};
-use crate::policy::policy::{CompletePolicy, ToJson};
-use crate::policy::policy_set::{PolicySet, PolicySetTrait, PolicySetHelper};
-use std::cmp::Ordering;
-use crate::identity::subject::Subject;
 use crate::identity::role::Role;
-use serde_json::{Value, Map};
+use crate::identity::subject::Subject;
+use crate::policy::policy::{CompletePolicy, ToJson};
+use crate::policy::policy_set::{PolicySet, PolicySetHelper, PolicySetTrait};
+use serde_json::{Map, Value};
+use std::cmp::Ordering;
 use std::slice::Iter;
 
 pub struct IdentitySet {
@@ -22,9 +22,7 @@ impl<'a> IntoIterator for &'a IdentitySet {
 
 impl IdentitySet {
     fn new() -> Self {
-        IdentitySet {
-            identities: vec![]
-        }
+        IdentitySet { identities: vec![] }
     }
 
     fn insert_if_missing(identities: &mut Vec<Identity>, identity: Identity) {
@@ -32,9 +30,7 @@ impl IdentitySet {
             Some(_) => {
                 return;
             }
-            None => {
-                identities.push(identity)
-            }
+            None => identities.push(identity),
         }
     }
 
@@ -46,11 +42,11 @@ impl IdentitySet {
 
     pub fn remove_identity<T: ToIdentityId>(mut self, identity: T) -> Self {
         let identity_id = identity.to_identity_id();
-        self.identities = self.identities
+        self.identities = self
+            .identities
             .into_iter()
             .filter(|i| i.id.cmp(identity_id) != Ordering::Equal)
-            .collect()
-        ;
+            .collect();
 
         self
     }
@@ -129,15 +125,25 @@ impl ToJson for Group {
                 Value::Null
             } else {
                 Value::from(self.inline_policy.as_ref().unwrap().to_json())
-            }
+            },
         );
         map.insert(
             String::from("identities"),
-            Value::from(identities.into_iter().map(|ref i| i.id.clone()).collect::<Vec<String>>())
+            Value::from(
+                identities
+                    .into_iter()
+                    .map(|ref i| i.id.clone())
+                    .collect::<Vec<String>>(),
+            ),
         );
         map.insert(
             String::from("linked_policies"),
-            Value::from(linked_policies.into_iter().map(|ref p| p.id.clone()).collect::<Vec<String>>())
+            Value::from(
+                linked_policies
+                    .into_iter()
+                    .map(|ref p| p.id.clone())
+                    .collect::<Vec<String>>(),
+            ),
         );
 
         map

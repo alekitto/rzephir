@@ -1,8 +1,8 @@
+use crate::identity::role::Role;
 use crate::identity::subject::Subject;
 use crate::policy::policy::{CompletePolicy, ToJson};
-use crate::identity::role::Role;
-use serde_json::{Value, Map};
-use crate::policy::policy_set::{PolicySet, PolicySetTrait, PolicySetHelper};
+use crate::policy::policy_set::{PolicySet, PolicySetHelper, PolicySetTrait};
+use serde_json::{Map, Value};
 
 pub struct Identity {
     pub(crate) id: String,
@@ -61,16 +61,22 @@ impl ToJson for Identity {
         let linked_policies = &self.linked_policies;
         let mut map = Map::new();
         map.insert(String::from("id"), Value::from(self.id.clone()));
-        map.insert(String::from("inline_policy"),
+        map.insert(
+            String::from("inline_policy"),
             if self.inline_policy.is_none() {
                 Value::Null
             } else {
                 Value::from(self.inline_policy.as_ref().unwrap().to_json())
-            }
+            },
         );
         map.insert(
             String::from("linked_policies"),
-            Value::from(linked_policies.into_iter().map(|ref p| p.id.clone()).collect::<Vec<String>>())
+            Value::from(
+                linked_policies
+                    .into_iter()
+                    .map(|ref p| p.id.clone())
+                    .collect::<Vec<String>>(),
+            ),
         );
 
         map
@@ -99,4 +105,9 @@ impl Role for Identity {
     fn linked_policies(&self) -> &PolicySet<CompletePolicy> {
         &self.linked_policies
     }
+}
+
+#[cfg(test)]
+mod tests {
+
 }

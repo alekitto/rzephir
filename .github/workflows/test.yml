@@ -13,7 +13,8 @@ jobs:
         uses: actions/cache@v1
         with:
           path: |
-            ~/.cargo
+            ~/.cargo/registry
+            ~/.cargo/git
             libzephir/target
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml', '**/Cargo.lock') }}

@@ -1,6 +1,6 @@
 use crate::policy::policy::{PartialPolicy, ToJson};
 use crate::policy::PolicyEffect;
-use serde_json::{Value, Map};
+use serde_json::{Map, Value};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum AllowedOutcome {
@@ -58,7 +58,8 @@ impl AllowedResult {
         }
 
         if self.outcome == AllowedOutcome::Allowed {
-            self.partials = self.partials
+            self.partials = self
+                .partials
                 .drain(..)
                 .filter(|p| p.effect == PolicyEffect::Deny)
                 .collect();
@@ -74,14 +75,11 @@ impl ToJson for AllowedResult {
             Value::from(match self.outcome() {
                 AllowedOutcome::Denied => "DENIED",
                 AllowedOutcome::Abstain => "ABSTAIN",
-                AllowedOutcome::Allowed => "ALLOWED"
-            })
+                AllowedOutcome::Allowed => "ALLOWED",
+            }),
         );
 
-        result.insert(
-            String::from("partials"),
-            Value::from(self.partials.clone()),
-        );
+        result.insert(String::from("partials"), Value::from(self.partials.clone()));
 
         result
     }
@@ -89,10 +87,10 @@ impl ToJson for AllowedResult {
 
 #[cfg(test)]
 mod tests {
-    use crate::policy::allowed_result::{AllowedResult, AllowedOutcome};
-    use crate::policy::policy::{ToJson, PartialPolicy};
-    use serde_json::{Map, Value};
+    use crate::policy::allowed_result::{AllowedOutcome, AllowedResult};
+    use crate::policy::policy::{PartialPolicy, ToJson};
     use crate::policy::PolicyEffect;
+    use serde_json::{Map, Value};
 
     #[test]
     fn new_with_denied_should_reset_partials() {
@@ -124,7 +122,10 @@ mod tests {
 
         let mut json = Map::new();
         json.insert(String::from("outcome"), Value::from("DENIED"));
-        json.insert(String::from("partials"), Value::from(Vec::<PartialPolicy>::new()));
+        json.insert(
+            String::from("partials"),
+            Value::from(Vec::<PartialPolicy>::new()),
+        );
 
         assert_eq!(ar.outcome(), AllowedOutcome::Denied);
         assert_eq!(ar.to_json(), json);
@@ -147,16 +148,16 @@ mod tests {
 
     #[test]
     fn merge_with_denied_result_should_reset_partials() {
-        let mut ar = AllowedResult::new(
-            AllowedOutcome::Abstain,
-            vec![PartialPolicy::default()]
-        );
+        let mut ar = AllowedResult::new(AllowedOutcome::Abstain, vec![PartialPolicy::default()]);
 
         ar.merge(&AllowedResult::new(AllowedOutcome::Denied, vec![]));
 
         let mut json = Map::new();
         json.insert(String::from("outcome"), Value::from("DENIED"));
-        json.insert(String::from("partials"), Value::from(Vec::<PartialPolicy>::new()));
+        json.insert(
+            String::from("partials"),
+            Value::from(Vec::<PartialPolicy>::new()),
+        );
 
         assert_eq!(ar.outcome(), AllowedOutcome::Denied);
         assert_eq!(ar.to_json(), json);
@@ -164,16 +165,19 @@ mod tests {
 
     #[test]
     fn merge_with_abstain_should_copy_partials() {
-        let mut ar = AllowedResult::new(
-            AllowedOutcome::Abstain,
-            vec![]
-        );
+        let mut ar = AllowedResult::new(AllowedOutcome::Abstain, vec![]);
 
-        ar.merge(&AllowedResult::new(AllowedOutcome::Abstain, vec![PartialPolicy::default()]));
+        ar.merge(&AllowedResult::new(
+            AllowedOutcome::Abstain,
+            vec![PartialPolicy::default()],
+        ));
 
         let mut json = Map::new();
         json.insert(String::from("outcome"), Value::from("ABSTAIN"));
-        json.insert(String::from("partials"), Value::from(vec![PartialPolicy::default()]));
+        json.insert(
+            String::from("partials"),
+            Value::from(vec![PartialPolicy::default()]),
+        );
 
         assert_eq!(ar.outcome(), AllowedOutcome::Abstain);
         assert_eq!(ar.to_json(), json);
@@ -181,14 +185,14 @@ mod tests {
 
     #[test]
     fn merge_with_allow_should_copy_deny_partials() {
-        let mut ar = AllowedResult::new(
-            AllowedOutcome::Abstain,
-            vec![]
-        );
+        let mut ar = AllowedResult::new(AllowedOutcome::Abstain, vec![]);
 
         let mut partial = PartialPolicy::default();
         partial.effect = PolicyEffect::Deny;
-        ar.merge(&AllowedResult::new(AllowedOutcome::Allowed, vec![partial.clone()]));
+        ar.merge(&AllowedResult::new(
+            AllowedOutcome::Allowed,
+            vec![partial.clone()],
+        ));
 
         let mut json = Map::new();
         json.insert(String::from("outcome"), Value::from("ALLOWED"));

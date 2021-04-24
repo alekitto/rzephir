@@ -39,17 +39,17 @@ impl MatchResult {
     }
 
     /// Updates the match flag for action
-    pub(in super) fn update_action(&mut self, result: bool) -> () {
+    pub(super) fn update_action(&mut self, result: bool) -> () {
         self.action_matches = Option::Some(result);
     }
 
     /// Updates the match flag for resource
-    pub(in super) fn update_resource(&mut self, result: bool) -> () {
+    pub(super) fn update_resource(&mut self, result: bool) -> () {
         self.resource_matches = Option::Some(result);
     }
 
     /// Updates the match flag for conditions
-    pub(in super) fn update_conditions(&mut self, result: bool) -> () {
+    pub(super) fn update_conditions(&mut self, result: bool) -> () {
         self.conditions_match = Option::Some(result);
     }
 
@@ -70,7 +70,7 @@ impl MatchResult {
     }
 
     /// Internal: updates the result
-    pub(in super) fn _update(&mut self, policy: &impl MatchablePolicy) -> () {
+    pub(super) fn _update(&mut self, policy: &impl MatchablePolicy) -> () {
         self.partial.reset();
         self.partial.effect = policy.get_effect();
 
@@ -112,8 +112,8 @@ impl MatchResult {
 #[cfg(test)]
 mod tests {
     use crate::policy::match_result::{MatchResult, ResultOutcome, ResultType};
+    use crate::policy::{PolicyEffect, PolicyVersion};
     use crate::zephir_policy;
-    use crate::policy::{PolicyVersion, PolicyEffect};
 
     #[test]
     fn match_result_could_be_created() {
@@ -130,7 +130,8 @@ mod tests {
             PolicyVersion::Version1,
             PolicyEffect::Allow,
             vec!["get_action"]
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut mr = MatchResult::new();
         mr.update_action(false);
@@ -158,7 +159,8 @@ mod tests {
             PolicyVersion::Version1,
             PolicyEffect::Allow,
             vec!["get_action"]
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut mr = MatchResult::new();
         mr.update_resource(true);
@@ -169,7 +171,10 @@ mod tests {
 
         let partial = mr.get_partial();
         assert_eq!(partial.effect, PolicyEffect::Allow);
-        assert_eq!(partial.actions, Option::Some(vec!["get_action".to_string()]));
+        assert_eq!(
+            partial.actions,
+            Option::Some(vec!["get_action".to_string()])
+        );
         assert_eq!(partial.resources, Option::None);
     }
 
@@ -181,7 +186,8 @@ mod tests {
             PolicyEffect::Allow,
             vec!["get_action"],
             vec!["resource1", "resource2"]
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut mr = MatchResult::new();
         mr.update_action(true);
@@ -192,10 +198,10 @@ mod tests {
 
         let partial = mr.get_partial();
         assert_eq!(partial.effect, PolicyEffect::Allow);
-        assert_eq!(partial.resources, Option::Some(vec![
-            "resource1".to_string(),
-            "resource2".to_string(),
-        ]));
+        assert_eq!(
+            partial.resources,
+            Option::Some(vec!["resource1".to_string(), "resource2".to_string(),])
+        );
         assert_eq!(partial.actions, Option::None);
     }
 }
