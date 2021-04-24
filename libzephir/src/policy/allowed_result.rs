@@ -29,6 +29,10 @@ impl AllowedResult {
         }
     }
 
+    pub fn get_partials(&self) -> Vec<&PartialPolicy> {
+        self.partials.iter().collect()
+    }
+
     pub fn outcome(&self) -> AllowedOutcome {
         let outcome = self.outcome;
 

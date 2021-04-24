@@ -1,8 +1,10 @@
-use crate::identity::role::Role;
+use crate::identity::role::{Role, allowed};
 use crate::identity::subject::Subject;
 use crate::policy::policy::{CompletePolicy, ToJson};
 use crate::policy::policy_set::{PolicySet, PolicySetHelper, PolicySetTrait};
 use serde_json::{Map, Value};
+use crate::policy::allowed_result::AllowedResult;
+use std::fmt::Display;
 
 pub struct Identity {
     pub(crate) id: String,
@@ -11,9 +13,9 @@ pub struct Identity {
 }
 
 impl Identity {
-    pub fn new(id: String, policy: Option<CompletePolicy>) -> Self {
+    pub fn new<T: ToString>(id: T, policy: Option<CompletePolicy>) -> Self {
         Identity {
-            id,
+            id: id.to_string(),
             inline_policy: policy,
             linked_policies: PolicySet::new(),
         }
@@ -105,9 +107,82 @@ impl Role for Identity {
     fn linked_policies(&self) -> &PolicySet<CompletePolicy> {
         &self.linked_policies
     }
+
+    fn allowed<T, S>(&self, action: Option<T>, resource: Option<S>) -> AllowedResult
+    where
+        T: ToString + Display,
+        S: ToString + Display,
+    {
+        let mut policies = vec![];
+        if self.inline_policy.is_some() {
+            policies.push(self.inline_policy.as_ref().unwrap())
+        }
+
+        let linked_policies = self.linked_policies();
+        for policy in linked_policies {
+            policies.push(policy);
+        }
+
+        allowed(policies, action, resource)
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::zephir_policy;
+    use crate::identity::identity::Identity;
+    use crate::policy::{PolicyEffect, PolicyVersion};
+    use crate::identity::role::Role;
+    use crate::policy::allowed_result::AllowedOutcome;
+    use crate::policy::policy_set::PolicySetTrait;
 
+    #[test]
+    fn can_be_created() {
+        let i = Identity::new("Identity", Option::None);
+        assert_eq!(i.linked_policies().len(), 0);
+
+        let i = Identity::new("IdentityTest2", Option::Some(zephir_policy!("TestPolicyGroup", PolicyVersion::Version1, PolicyEffect::Allow, vec!["Action"]).unwrap()));
+        assert_eq!(i.linked_policies().len(), 0);
+    }
+
+    #[test]
+    fn allow_should_check_inline_policy() {
+        let i = Identity::new("IdentityTestAllowShouldCheckInlinePolicy", Option::Some(zephir_policy!(
+            "TestInlinePolicyOnIdentity",
+            PolicyVersion::Version1,
+            PolicyEffect::Allow,
+            vec!["*"],
+            vec!["urn:test-resource:id"]
+        ).unwrap()));
+
+        let result = i.allowed(Option::Some("test:identity"), Option::Some("urn:test-resource:id"));
+        assert_eq!(result.outcome(), AllowedOutcome::Allowed);
+        assert_eq!(result.get_partials().len(), 0);
+
+        let result = i.allowed::<&str, String>(Option::Some("test:identity"), Option::None);
+        assert_eq!(result.outcome(), AllowedOutcome::Abstain);
+        assert_eq!(result.get_partials().len(), 1);
+    }
+
+    #[test]
+    fn should_check_inline_and_linked_policies() {
+        let i = Identity::new("IdentityTestShouldCheckInlineAndLinkedPolicies", Option::Some(zephir_policy!(
+            "TestInlinePolicyOnIdentity",
+            PolicyVersion::Version1,
+            PolicyEffect::Allow,
+            vec!["test:not-identity"],
+            vec!["urn:test-resource:id"]
+        ).unwrap()));
+
+        let i = i.add_policy(zephir_policy!(
+            "TestLinkedPolicyOnIdentity",
+            PolicyVersion::Version1,
+            PolicyEffect::Allow,
+            vec!["test:identity"],
+            vec!["*"]
+        ).unwrap());
+
+        let result = i.allowed(Option::Some("test:identity"), Option::Some("urn:test:zephir:identity"));
+        assert_eq!(result.outcome(), AllowedOutcome::Allowed);
+    }
 }

@@ -3,12 +3,17 @@ use crate::policy::policy::{CompletePolicy, MatchablePolicy};
 use crate::policy::policy_set::PolicySet;
 use crate::policy::PolicyEffect;
 use serde_json::Value;
+use std::fmt::Display;
 
-fn allowed(
+pub(in super) fn allowed<T, S>(
     policies: Vec<&CompletePolicy>,
-    action: Option<String>,
-    resource: Option<String>,
-) -> AllowedResult {
+    action: Option<T>,
+    resource: Option<S>,
+) -> AllowedResult
+where
+    T: ToString + Display,
+    S: ToString + Display,
+{
     let mut outcome: AllowedOutcome = AllowedOutcome::Abstain;
     let mut partials = vec![];
 
@@ -36,7 +41,11 @@ fn allowed(
 pub trait Role: Into<Value> {
     fn linked_policies(&self) -> &PolicySet<CompletePolicy>;
 
-    fn allowed(&self, action: Option<String>, resource: Option<String>) -> AllowedResult {
+    fn allowed<T, S>(&self, action: Option<T>, resource: Option<S>) -> AllowedResult
+        where
+            T: ToString + Display,
+            S: ToString + Display,
+    {
         let mut policies = vec![];
         let linked_policies = self.linked_policies();
         for policy in linked_policies {
@@ -53,39 +62,56 @@ pub trait Role: Into<Value> {
 
 #[cfg(test)]
 mod tests {
-    use crate::identity::role::allowed;
+    use crate::identity::role::{allowed, Role};
     use crate::policy::allowed_result::AllowedOutcome;
-    use crate::policy::policy::{PartialPolicy, ToJson};
+    use crate::policy::policy::{PartialPolicy, ToJson, CompletePolicy};
     use crate::policy::{PolicyEffect, PolicyVersion};
     use crate::zephir_policy;
     use serde_json::{Map, Value};
+    use crate::policy::policy_set::{PolicySet, PolicySetTrait};
+
+    struct ConcreteRole {
+        policy_set: PolicySet<CompletePolicy>,
+    }
+
+    impl Role for ConcreteRole {
+        fn linked_policies(&self) -> &PolicySet<CompletePolicy> {
+            &self.policy_set
+        }
+    }
+
+    impl Into<Value> for ConcreteRole {
+        fn into(self) -> Value {
+            todo!()
+        }
+    }
 
     #[test]
     fn allowed_should_return_denied_on_no_policy() {
-        let res = allowed(vec![], Option::None, Option::None);
+        let res = allowed::<String, String>(vec![], Option::None, Option::None);
         assert_eq!(res.outcome(), AllowedOutcome::Denied);
     }
 
     #[test]
     fn allowed_should_check_matching_on_all_passed_policies() {
-        let res = allowed(
+        let res = allowed::<&str, String>(
             vec![
                 &zephir_policy!(
-                    String::from("p1"),
+                    "p1",
                     PolicyVersion::Version1,
                     PolicyEffect::Allow,
                     vec!["get_first"]
                 )
                 .unwrap(),
                 &zephir_policy!(
-                    String::from("p2"),
+                    "p2",
                     PolicyVersion::Version1,
                     PolicyEffect::Allow,
                     vec!["get_second"]
                 )
                 .unwrap(),
             ],
-            Option::Some(String::from("get_first")),
+            Option::Some("get_first"),
             Option::None,
         );
 
@@ -94,10 +120,10 @@ mod tests {
 
     #[test]
     fn allowed_should_check_matching_with_resources() {
-        let res = allowed(
+        let res = allowed::<&str, String>(
             vec![
                 &zephir_policy!(
-                    String::from("p1"),
+                    "p1",
                     PolicyVersion::Version1,
                     PolicyEffect::Allow,
                     vec!["get_first"],
@@ -105,7 +131,7 @@ mod tests {
                 )
                 .unwrap(),
                 &zephir_policy!(
-                    String::from("p2"),
+                    "p2",
                     PolicyVersion::Version1,
                     PolicyEffect::Allow,
                     vec!["get_second"],
@@ -113,7 +139,7 @@ mod tests {
                 )
                 .unwrap(),
             ],
-            Option::Some(String::from("get_first")),
+            Option::Some("get_first"),
             Option::None,
         );
 
@@ -160,5 +186,37 @@ mod tests {
         json.insert(String::from("outcome"), Value::from("DENIED"));
         json.insert(String::from("partials"), Value::from(Vec::<PartialPolicy>::new()));
         assert_eq!(res.to_json(), json);
+    }
+
+    #[test]
+    fn allowed_should_work_correctly() {
+        let ps = PolicySet::new()
+            .add_policy(zephir_policy!(String::from("RoleTestPolicy"), PolicyVersion::Version1, PolicyEffect::Allow, vec![String::from("TestAction")]).unwrap())
+            .add_policy(zephir_policy!(String::from("RoleTestPolicy2"), PolicyVersion::Version1, PolicyEffect::Deny, vec![String::from("TestAction")], vec![String::from("urn:resource:test-class-deny:*")]).unwrap())
+            .add_policy(zephir_policy!(String::from("RoleTestPolicy3"), PolicyVersion::Version1, PolicyEffect::Allow, vec![String::from("FooAction")], vec![String::from("urn:resource:test-class:*")]).unwrap());
+
+        let role = ConcreteRole {
+            policy_set: ps,
+        };
+
+        let result = role.allowed(Option::Some("TestAction"), Option::Some("urn:resource:test-class-allow:test-id"));
+        assert_eq!(result.outcome(), AllowedOutcome::Allowed);
+        assert_eq!(result.get_partials().len(), 0);
+
+        let result = role.allowed(Option::Some("TestAction"), Option::Some("urn:resource:test-class-deny:test-id"));
+        assert_eq!(result.outcome(), AllowedOutcome::Denied);
+        assert_eq!(result.get_partials().len(), 0);
+
+        let result = role.allowed(Option::Some("FooAction"), Option::Some("urn:resource:test-class-deny:test-id"));
+        assert_eq!(result.outcome(), AllowedOutcome::Denied);
+        assert_eq!(result.get_partials().len(), 0);
+
+        let result = role.allowed::<&str, String>(Option::Some("FooAction"), Option::None);
+        assert_eq!(result.outcome(), AllowedOutcome::Abstain);
+        assert_eq!(result.get_partials().len(), 1);
+
+        let result = role.allowed::<&str, String>(Option::Some("TestAction"), Option::None);
+        assert_eq!(result.outcome(), AllowedOutcome::Allowed);
+        assert_eq!(result.get_partials().len(), 1);
     }
 }
