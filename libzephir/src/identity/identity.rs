@@ -1,11 +1,12 @@
 use crate::identity::role::{allowed, Role};
-use crate::identity::subject::Subject;
+use crate::identity::subject::{Subject, SubjectIterator};
 use crate::policy::allowed_result::AllowedResult;
 use crate::policy::policy::{CompletePolicy, ToJson};
 use crate::policy::policy_set::{PolicySet, PolicySetHelper, PolicySetTrait};
 use serde_json::{Map, Value};
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
+#[derive(Debug)]
 pub struct Identity {
     pub(crate) id: String,
     pub(crate) inline_policy: Option<CompletePolicy>,
@@ -31,6 +32,9 @@ impl Identity {
     }
 
     pub fn set_inline_policy(mut self, policy: CompletePolicy) -> Self {
+        let mut policy = policy.clone();
+        policy.id = "__embedded_policy_identity_".to_owned() + self.id.as_str() + "__";
+
         self.inline_policy = Option::Some(policy);
         self
     }
@@ -111,19 +115,8 @@ impl Role for Identity {
     fn allowed<T, S>(&self, action: Option<T>, resource: Option<S>) -> AllowedResult
     where
         T: ToString + Display,
-        S: ToString + Display,
-    {
-        let mut policies = vec![];
-        if self.inline_policy.is_some() {
-            policies.push(self.inline_policy.as_ref().unwrap())
-        }
-
-        let linked_policies = self.linked_policies();
-        for policy in linked_policies {
-            policies.push(policy);
-        }
-
-        allowed(policies, action, resource)
+        S: ToString + Display + Debug {
+        allowed(SubjectIterator::new(self), action, resource)
     }
 }
 

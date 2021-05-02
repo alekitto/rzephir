@@ -39,6 +39,14 @@ impl TryFrom<i32> for PolicyVersion {
     }
 }
 
+impl From<&PolicyVersion> for i32 {
+    fn from(value: &PolicyVersion) -> Self {
+        match value {
+            PolicyVersion::Version1 => 1,
+        }
+    }
+}
+
 impl From<&PolicyVersion> for Value {
     fn from(value: &PolicyVersion) -> Self {
         Value::Number(Number::from(value.clone() as i32))
@@ -67,6 +75,15 @@ impl From<&PolicyEffect> for Value {
             PolicyEffect::Deny => "DENY",
             PolicyEffect::Allow => "ALLOW",
         })
+    }
+}
+
+impl From<&PolicyEffect> for bool {
+    fn from(value: &PolicyEffect) -> Self {
+        match value {
+            PolicyEffect::Allow => true,
+            PolicyEffect::Deny => false,
+        }
     }
 }
 

@@ -1,11 +1,13 @@
 use crate::identity::identity::{Identity, ToIdentityId};
-use crate::identity::role::Role;
-use crate::identity::subject::Subject;
+use crate::identity::role::{Role, allowed};
+use crate::identity::subject::{Subject, SubjectIterator};
 use crate::policy::policy::{CompletePolicy, ToJson};
 use crate::policy::policy_set::{PolicySet, PolicySetHelper, PolicySetTrait};
 use serde_json::{Map, Value};
 use std::cmp::Ordering;
 use std::slice::Iter;
+use crate::policy::allowed_result::AllowedResult;
+use std::fmt::{Display, Debug};
 
 pub struct IdentitySet {
     identities: Vec<Identity>,
@@ -23,6 +25,10 @@ impl<'a> IntoIterator for &'a IdentitySet {
 impl IdentitySet {
     fn new() -> Self {
         IdentitySet { identities: vec![] }
+    }
+
+    pub fn len(&self) -> usize {
+        self.identities.len()
     }
 
     fn insert_if_missing(identities: &mut Vec<Identity>, identity: Identity) {
@@ -61,9 +67,12 @@ pub struct Group {
 }
 
 impl Group {
-    pub fn new(name: String, policy: Option<CompletePolicy>) -> Self {
+    pub fn new<T>(name: T, policy: Option<CompletePolicy>) -> Self
+    where
+        T: ToString,
+    {
         Group {
-            name,
+            name: name.to_string(),
             identities: IdentitySet::new(),
             inline_policy: policy,
             linked_policies: PolicySet::new(),
@@ -80,6 +89,9 @@ impl Group {
     }
 
     pub fn set_inline_policy(mut self, policy: CompletePolicy) -> Self {
+        let mut policy = policy.clone();
+        policy.id = "__embedded_policy_group_".to_owned() + self.name.as_str() + "__";
+
         self.inline_policy = Option::Some(policy);
         self
     }
@@ -159,5 +171,78 @@ impl Subject for Group {
 impl Role for Group {
     fn linked_policies(&self) -> &PolicySet<CompletePolicy> {
         &self.linked_policies
+    }
+
+    fn allowed<T, S>(&self, action: Option<T>, resource: Option<S>) -> AllowedResult
+        where
+            T: ToString + Display,
+            S: ToString + Display + Debug {
+        allowed(SubjectIterator::new(self), action, resource)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::identity::group::Group;
+    use crate::identity::identity::Identity;
+    use crate::policy::{PolicyEffect, PolicyVersion};
+    use crate::zephir_policy;
+
+    #[test]
+    fn group_could_be_created() {
+        let g = Group::new("Group", Option::None);
+        assert_eq!(g.identities.len(), 0);
+
+        let g = Group::new(
+            "Group2",
+            Option::Some(
+                zephir_policy!(
+                    "TestPolicyGroup",
+                    PolicyVersion::Version1,
+                    PolicyEffect::Allow,
+                    vec!["Action"]
+                )
+                .unwrap(),
+            ),
+        );
+        assert_eq!(g.identities.len(), 0);
+    }
+
+    #[test]
+    fn identites_can_be_added_to_a_group() {
+        let mut g = Group::new("Group", Option::None);
+        assert_eq!(g.identities.len(), 0);
+
+        let i = Identity::new("TestIdentity", Option::None);
+        g = g.add_identity(i);
+
+        let i = Identity::new("TestIdentity", Option::None);
+        g = g.add_identity(i);
+
+        assert_eq!(g.identities.len(), 1);
+    }
+
+    #[test]
+    fn identites_can_be_removed_from_a_group() {
+        let mut g = Group::new("Group", Option::None);
+        assert_eq!(g.identities.len(), 0);
+
+        let i = Identity::new("TestIdentity", Option::None);
+        let i2 = Identity::new("TestIdentity2", Option::None);
+        g = g.add_identity(i);
+        g = g.add_identity(i2);
+        assert_eq!(g.identities.len(), 2);
+
+        let i = Identity::new("TestIdentity", Option::None);
+        g = g.remove_identity(i);
+        assert_eq!(g.identities.len(), 1);
+
+        g = g.remove_identity(String::from("TestIdentity"));
+        assert_eq!(g.identities.len(), 1);
+
+        let i2 = Identity::new("TestIdentity2", Option::None);
+        g = g.remove_identity(i2.id);
+
+        assert_eq!(g.identities.len(), 0);
     }
 }

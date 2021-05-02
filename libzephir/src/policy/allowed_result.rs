@@ -9,6 +9,7 @@ pub enum AllowedOutcome {
     Allowed = 1,
 }
 
+#[derive(Debug)]
 pub struct AllowedResult {
     outcome: AllowedOutcome,
     partials: Vec<PartialPolicy>,
@@ -26,6 +27,13 @@ impl AllowedResult {
                     .collect(),
                 _ => partials,
             },
+        }
+    }
+
+    pub fn denied() -> Self {
+        Self {
+            outcome: AllowedOutcome::Denied,
+            partials: vec![],
         }
     }
 

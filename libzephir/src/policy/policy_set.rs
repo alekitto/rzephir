@@ -20,6 +20,7 @@ impl PolicySetHelper {
     }
 }
 
+#[derive(Debug)]
 pub struct PolicySet<T: Policy> {
     policies: Vec<T>,
 }
@@ -38,9 +39,7 @@ impl<T: Policy> PolicySet<T> {
             .iter_mut()
             .find(|ref p| p.id().cmp(policy.id()) == Ordering::Equal)
         {
-            Some(_) => {
-                return;
-            }
+            Some(_) => { }
             None => policies.push(policy),
         }
     }

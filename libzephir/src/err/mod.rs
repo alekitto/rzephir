@@ -3,9 +3,20 @@ use std::fmt::{Display, Formatter};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ErrorKind {
+    /// Error raised when trying to create a policy with an empty action set
+    /// Actions are mandatory and at least one action is required to
+    /// create a complete policy. Otherwise the policy doesn't make sense.
     ActionsCannotBeEmptyError = 1,
+
+    /// Raised when trying to create a policy with an unknown version.
+    /// At the moment, only the version no. 1 is implemented.
     UnknownPolicyVersionError = 2,
 
+    /// Raised when trying to unwrap an Option::None value.
+    UnwrapNoneValueError = 3,
+
+    /// Represents any other error including the one not raised by this library
+    /// and wrapped into a Error object exposed from this crate.
     UnknownError = -1,
 }
 
@@ -84,3 +95,14 @@ impl fmt::Display for UnknownPolicyVersionError {
 }
 
 impl std::error::Error for UnknownPolicyVersionError {}
+
+#[derive(Debug)]
+pub struct NoneError {}
+
+impl fmt::Display for NoneError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Trying to unwrap none value")
+    }
+}
+
+impl std::error::Error for NoneError {}

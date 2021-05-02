@@ -3,16 +3,17 @@ use crate::policy::policy::{CompletePolicy, MatchablePolicy};
 use crate::policy::policy_set::PolicySet;
 use crate::policy::PolicyEffect;
 use serde_json::Value;
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
-pub(super) fn allowed<T, S>(
-    policies: Vec<&CompletePolicy>,
+pub(super) fn allowed<'a, T, S, I>(
+    policies: I,
     action: Option<T>,
     resource: Option<S>,
 ) -> AllowedResult
 where
     T: ToString + Display,
-    S: ToString + Display,
+    S: ToString + Display + Debug,
+    I: Iterator<Item = &'a CompletePolicy>,
 {
     let mut outcome: AllowedOutcome = AllowedOutcome::Abstain;
     let mut partials = vec![];
@@ -44,7 +45,7 @@ pub trait Role: Into<Value> {
     fn allowed<T, S>(&self, action: Option<T>, resource: Option<S>) -> AllowedResult
     where
         T: ToString + Display,
-        S: ToString + Display,
+        S: ToString + Display + Debug,
     {
         let mut policies = vec![];
         let linked_policies = self.linked_policies();
@@ -52,7 +53,7 @@ pub trait Role: Into<Value> {
             policies.push(policy);
         }
 
-        allowed(policies, action, resource)
+        allowed(policies.into_iter(), action, resource)
     }
 
     fn into(self) -> Value {
@@ -88,13 +89,13 @@ mod tests {
 
     #[test]
     fn allowed_should_return_denied_on_no_policy() {
-        let res = allowed::<String, String>(vec![], Option::None, Option::None);
+        let res = allowed::<String, String, _>(vec![].into_iter(), Option::None, Option::None);
         assert_eq!(res.outcome(), AllowedOutcome::Denied);
     }
 
     #[test]
     fn allowed_should_check_matching_on_all_passed_policies() {
-        let res = allowed::<&str, String>(
+        let res = allowed::<&str, String, _>(
             vec![
                 &zephir_policy!(
                     "p1",
@@ -110,7 +111,7 @@ mod tests {
                     vec!["get_second"]
                 )
                 .unwrap(),
-            ],
+            ].into_iter(),
             Option::Some("get_first"),
             Option::None,
         );
@@ -120,7 +121,7 @@ mod tests {
 
     #[test]
     fn allowed_should_check_matching_with_resources() {
-        let res = allowed::<&str, String>(
+        let res = allowed::<&str, String, _>(
             vec![
                 &zephir_policy!(
                     "p1",
@@ -138,7 +139,7 @@ mod tests {
                     vec!["resource_one"]
                 )
                 .unwrap(),
-            ],
+            ].into_iter(),
             Option::Some("get_first"),
             Option::None,
         );
@@ -175,7 +176,7 @@ mod tests {
                     vec!["resource_one"]
                 )
                 .unwrap(),
-            ],
+            ].into_iter(),
             Option::Some(String::from("get_first")),
             Option::Some(String::from("resource_onw")),
         );

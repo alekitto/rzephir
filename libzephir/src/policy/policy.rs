@@ -4,6 +4,7 @@ use crate::err::Error;
 use crate::policy::match_result::MatchResult;
 use crate::policy::{PolicyEffect, PolicyVersion};
 use serde_json::{Map, Value};
+use std::fmt::Debug;
 
 pub trait ToJson {
     /// Return a JSON value representing the policy
@@ -51,7 +52,7 @@ pub trait MatchablePolicy: Policy {
     fn matching<T, S>(&self, action: Option<T>, resource: Option<S>) -> MatchResult
     where
         T: ToString,
-        S: ToString;
+        S: ToString + Debug;
 
     /// Gets the action of the policy.
     fn get_actions(&self) -> Vec<String>;
@@ -126,6 +127,7 @@ impl Policy for PartialPolicy {
 }
 
 /// Represents a complete policy which can be matched completely
+#[derive(Clone, Debug)]
 pub struct CompletePolicy {
     pub id: String,
     pub version: PolicyVersion,
@@ -160,7 +162,7 @@ impl CompletePolicy {
         };
 
         let actions: Vec<String> = actions.into_iter().map(|s| s.to_string()).collect();
-        let compiled_policy = Compiler::compile(&actions, &resources);
+        let compiled_policy = Compiler::get_instance().compile(&id, &actions, &resources);
 
         Ok(CompletePolicy {
             id,
@@ -217,7 +219,7 @@ impl MatchablePolicy for CompletePolicy {
     fn matching<T, S>(&self, action: Option<T>, resource: Option<S>) -> MatchResult
     where
         T: ToString,
-        S: ToString,
+        S: ToString + Debug,
     {
         let mut result = MatchResult::new();
         let compiled = &self.compiled_policy;
@@ -275,6 +277,7 @@ macro_rules! zephir_policy {
 mod tests {
     use crate::policy::policy::{MatchablePolicy, Policy, ToJson};
     use crate::policy::{PolicyEffect, PolicyVersion};
+    use crate::compiler::compiler::cache;
     use crate::zephir_policy;
 
     #[test]
@@ -290,7 +293,10 @@ mod tests {
         assert_eq!(p.complete(), true);
         assert_eq!(p.resources, vec!["*"]);
         assert_eq!(p.actions, vec!["core:GetVersion", "test:GetResource"]);
-        assert_eq!(p.to_json_string(), "{\"actions\":[\"core:GetVersion\",\"test:GetResource\"],\"effect\":\"DENY\",\"id\":\"TestPolicy\",\"resources\":[\"*\"],\"version\":1}");
+        assert_eq!(
+            p.to_json_string(),
+            "{\"id\":\"TestPolicy\",\"version\":1,\"effect\":\"DENY\",\"actions\":[\"core:GetVersion\",\"test:GetResource\"],\"resources\":[\"*\"]}"
+        );
     }
 
     #[test]
@@ -329,6 +335,7 @@ mod tests {
 
     #[test]
     fn policy_matching_should_work_with_actions_star_glob() {
+        cache::flush_policy(&"TestPolicy".to_string());
         let policy = zephir_policy!(
             "TestPolicy",
             PolicyVersion::Version1,
@@ -349,6 +356,7 @@ mod tests {
 
     #[test]
     fn policy_matching_should_work_with_actions_question_mark_glob() {
+        cache::flush_policy(&"TestPolicy".to_string());
         let policy = zephir_policy!(
             "TestPolicy",
             PolicyVersion::Version1,
@@ -373,6 +381,7 @@ mod tests {
 
     #[test]
     fn matching_should_return_a_partial_policy() {
+        cache::flush_policy(&"TestPolicy".to_string());
         let policy = zephir_policy!(
             "TestPolicy",
             PolicyVersion::Version1,
@@ -382,6 +391,7 @@ mod tests {
         .unwrap();
         let m = policy.matching(Some("TestAction"), None as Option<String>);
         assert_eq!(m.is_full(), true);
+        cache::flush_policy(&policy.id);
 
         let policy = zephir_policy!(
             "TestPolicy",
@@ -407,14 +417,14 @@ mod tests {
         assert_eq!(*resources.unwrap(), vec!["urn:resource:test".to_string()]);
         assert_eq!(
             partial.to_json_string(),
-            "{\"effect\":\"ALLOW\",\"resources\":[\"urn:resource:test\"],\"version\":1}"
+            "{\"version\":1,\"effect\":\"ALLOW\",\"resources\":[\"urn:resource:test\"]}"
         );
 
         let m = policy.matching(None as Option<String>, Some("urn:resource:test"));
         let partial = m.get_partial();
         assert_eq!(
             partial.to_json_string(),
-            "{\"actions\":[\"TestAction\"],\"effect\":\"ALLOW\",\"version\":1}"
+            "{\"version\":1,\"effect\":\"ALLOW\",\"actions\":[\"TestAction\"]}"
         );
     }
 }
