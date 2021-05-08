@@ -2,9 +2,13 @@ FROM rustlang/rust:nightly-buster as builder
 RUN rustup target add x86_64-unknown-linux-musl
 
 WORKDIR app
-COPY . .
+COPY libzephir libzephir
+COPY zephir zephir
+COPY Cargo.* .
 
-RUN cargo build --release
+RUN cargo build --release && \
+    cargo test --release && \
+    cargo build --release
 
 FROM scratch as runtime
 

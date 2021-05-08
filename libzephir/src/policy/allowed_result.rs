@@ -162,7 +162,7 @@ mod tests {
     fn merge_with_denied_result_should_reset_partials() {
         let mut ar = AllowedResult::new(AllowedOutcome::Abstain, vec![PartialPolicy::default()]);
 
-        ar.merge(&AllowedResult::new(AllowedOutcome::Denied, vec![]));
+        ar.merge(AllowedResult::new(AllowedOutcome::Denied, vec![]));
 
         let mut json = Map::new();
         json.insert(String::from("outcome"), Value::from("DENIED"));
@@ -179,7 +179,7 @@ mod tests {
     fn merge_with_abstain_should_copy_partials() {
         let mut ar = AllowedResult::new(AllowedOutcome::Abstain, vec![]);
 
-        ar.merge(&AllowedResult::new(
+        ar.merge(AllowedResult::new(
             AllowedOutcome::Abstain,
             vec![PartialPolicy::default()],
         ));

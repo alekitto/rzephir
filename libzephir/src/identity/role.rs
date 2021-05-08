@@ -124,7 +124,7 @@ mod tests {
         let res = allowed::<&str, String, _>(
             vec![
                 &zephir_policy!(
-                    "p1",
+                    "p12",
                     PolicyVersion::Version1,
                     PolicyEffect::Allow,
                     vec!["get_first"],
@@ -132,7 +132,7 @@ mod tests {
                 )
                 .unwrap(),
                 &zephir_policy!(
-                    "p2",
+                    "p22",
                     PolicyVersion::Version1,
                     PolicyEffect::Allow,
                     vec!["get_second"],
@@ -161,7 +161,7 @@ mod tests {
         let res = allowed(
             vec![
                 &zephir_policy!(
-                    String::from("p1"),
+                    String::from("p13"),
                     PolicyVersion::Version1,
                     PolicyEffect::Deny,
                     vec!["get_first"],
@@ -169,7 +169,7 @@ mod tests {
                 )
                 .unwrap(),
                 &zephir_policy!(
-                    String::from("p2"),
+                    String::from("p23"),
                     PolicyVersion::Version1,
                     PolicyEffect::Allow,
                     vec!["get_second"],

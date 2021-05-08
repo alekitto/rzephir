@@ -281,13 +281,12 @@ macro_rules! zephir_policy {
 mod tests {
     use crate::policy::policy::{MatchablePolicy, Policy, ToJson};
     use crate::policy::{PolicyEffect, PolicyVersion};
-    use crate::compiler::compiler::cache;
     use crate::zephir_policy;
 
     #[test]
     fn complete_policy_could_be_created() {
         let p = zephir_policy!(
-            "TestPolicy",
+            "TestPolicy400",
             PolicyVersion::Version1,
             PolicyEffect::Deny,
             vec!["core:GetVersion", "test:GetResource"]
@@ -299,14 +298,14 @@ mod tests {
         assert_eq!(p.actions, vec!["core:GetVersion", "test:GetResource"]);
         assert_eq!(
             p.to_json_string(),
-            "{\"id\":\"TestPolicy\",\"version\":1,\"effect\":\"DENY\",\"actions\":[\"core:GetVersion\",\"test:GetResource\"],\"resources\":[\"*\"]}"
+            "{\"id\":\"TestPolicy400\",\"version\":1,\"effect\":\"DENY\",\"actions\":[\"core:GetVersion\",\"test:GetResource\"],\"resources\":[\"*\"]}"
         );
     }
 
     #[test]
     fn policy_creation_should_return_err_if_actions_are_empty() {
         let result = zephir_policy!(
-            "TestPolicy",
+            "TestPolicy300",
             PolicyVersion::Version1,
             PolicyEffect::Allow,
             vec![] as Vec<String>
@@ -320,7 +319,7 @@ mod tests {
     #[test]
     fn policy_matching_should_work_if_policy_contains_all_actions() {
         let policy = zephir_policy!(
-            "TestPolicy",
+            "TestPolicy200",
             PolicyVersion::Version1,
             PolicyEffect::Allow,
             vec!["*"]
@@ -339,9 +338,8 @@ mod tests {
 
     #[test]
     fn policy_matching_should_work_with_actions_star_glob() {
-        cache::flush_policy(&"TestPolicy".to_string());
         let policy = zephir_policy!(
-            "TestPolicy",
+            "TestPolicy100",
             PolicyVersion::Version1,
             PolicyEffect::Allow,
             vec!["*Action"]
@@ -360,9 +358,8 @@ mod tests {
 
     #[test]
     fn policy_matching_should_work_with_actions_question_mark_glob() {
-        cache::flush_policy("TestPolicy");
         let policy = zephir_policy!(
-            "TestPolicy",
+            "TestPolicy500",
             PolicyVersion::Version1,
             PolicyEffect::Allow,
             vec!["Foo?ar"]
@@ -385,9 +382,8 @@ mod tests {
 
     #[test]
     fn matching_should_return_a_partial_policy() {
-        cache::flush_policy(&"TestPolicy".to_string());
         let policy = zephir_policy!(
-            "TestPolicy",
+            "TestPolicy600",
             PolicyVersion::Version1,
             PolicyEffect::Allow,
             vec!["*"]
@@ -395,10 +391,9 @@ mod tests {
         .unwrap();
         let m = policy.matching(Some("TestAction"), None as Option<String>);
         assert_eq!(m.is_full(), true);
-        cache::flush_policy(&policy.id);
 
         let policy = zephir_policy!(
-            "TestPolicy",
+            "TestPolicy700",
             PolicyVersion::Version1,
             PolicyEffect::Allow,
             vec!["TestAction"],
