@@ -1,4 +1,4 @@
-use regex::Regex;
+use pcre2::bytes::{RegexBuilder, Regex};
 
 pub fn from_str(glob: &str) -> Regex {
     from_string(glob.to_string())
@@ -6,7 +6,10 @@ pub fn from_str(glob: &str) -> Regex {
 
 pub fn from_string(glob: String) -> Regex {
     if glob == "*" {
-        return Regex::new(r".+").unwrap();
+        return RegexBuilder::new()
+            .jit_if_available(true)
+            .build(r".+")
+            .unwrap();
     }
 
     let mut escaping = false;
@@ -66,7 +69,10 @@ pub fn from_string(glob: String) -> Regex {
         escaping = false;
     }
 
-    Regex::new(regex.as_str()).unwrap()
+    RegexBuilder::new()
+        .jit_if_available(true)
+        .build(r".+")
+        .unwrap()
 }
 
 #[cfg(test)]

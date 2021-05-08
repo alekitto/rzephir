@@ -2,7 +2,7 @@ use crate::cache::create_cache;
 use crate::compiler::compiled_policy::CompiledPolicy;
 use crate::utils::glob_to_regex;
 use log::{debug, log_enabled, trace, Level};
-use mouscache::Cache;
+use mouscache::{Cache, CacheError};
 use std::lazy::SyncLazy;
 use std::ops::Deref;
 
@@ -14,13 +14,25 @@ pub(crate) mod cache {
 
     /// Removes a compiled policy from the cache.
     /// Should be called from the storage manager, when a policy is updated or removed.
-    pub fn flush_policy(id: &String) {
-        let _ = COMPILER.cache.remove::<_, CompiledPolicy>(id.as_str());
+    pub fn flush_policy(id: &str) {
+        let _ = COMPILER.cache.remove::<_, CompiledPolicy>(id);
     }
 }
 
 pub struct Compiler {
     cache: Cache,
+}
+
+impl Default for Compiler {
+    /// Creates a new compiler with the default *in-memory* cache.
+    /// Should not be used if more than one instance of zephir is in execution
+    /// and a redis cache should be preferred in case.
+    ///
+    /// However, is small deployments, in memory cache is more than enough
+    /// and avoids an expensive redis (or redis-cluster) deployment.
+    fn default() -> Self {
+        Self::new(mouscache::memory())
+    }
 }
 
 impl Compiler {
@@ -31,16 +43,6 @@ impl Compiler {
     /// operation should be very fast in order to be usable.
     fn new(cache: Cache) -> Self {
         Compiler { cache }
-    }
-
-    /// Creates a new compiler with the default *in-memory* cache.
-    /// Should not be used if more than one instance of zephir is in execution
-    /// and a redis cache should be preferred in case.
-    ///
-    /// However, is small deployments, in memory cache is more than enough
-    /// and avoids an expensive redis (or redis-cluster) deployment.
-    fn default() -> Self {
-        Self::new(mouscache::memory())
     }
 
     /// Gets a reference to the compiler singleton.
@@ -65,28 +67,27 @@ impl Compiler {
     /// A CompiledPolicy object
     pub fn compile(
         &self,
-        id: &String,
-        actions: &Vec<String>,
-        resources: &Vec<String>,
+        id: &str,
+        actions: &[String],
+        resources: &[String],
     ) -> CompiledPolicy {
-        let id = id.as_str();
-        let item = self.cache.get(id);
+        let item = if id.is_empty() { Err(CacheError::Other("".to_string())) } else { self.cache.get(id) };
         if (&item).is_ok() && (&item).as_ref().unwrap().is_some() {
             debug!("Compiled policy {} found in cache.", id);
             return item.unwrap().unwrap();
         }
 
         let compiled_actions = actions
-            .into_iter()
+            .iter()
             .map(|a| glob_to_regex::from_string(a.to_string()))
             .collect();
 
-        let any_resource = resources.into_iter().any(|v| v == r"*");
+        let any_resource = resources.iter().any(|v| v == r"*");
         let compiled_resources = if any_resource {
             vec![]
         } else {
             resources
-                .into_iter()
+                .iter()
                 .map(|a| glob_to_regex::from_string(a.to_string()))
                 .collect()
         };

@@ -31,12 +31,14 @@ impl IdentitySet {
         self.identities.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.identities.is_empty()
+    }
+
     fn insert_if_missing(identities: &mut Vec<Identity>, identity: Identity) {
-        match identities.iter_mut().find(|ref i| i.id == identity.id) {
-            Some(_) => {
-                return;
-            }
-            None => identities.push(identity),
+        let found = identities.iter_mut().find(|ref i| i.id == identity.id);
+        if found.is_none() {
+            identities.push(identity);
         }
     }
 
@@ -89,11 +91,15 @@ impl Group {
     }
 
     pub fn set_inline_policy(mut self, policy: CompletePolicy) -> Self {
-        let mut policy = policy.clone();
+        let mut policy = policy;
         policy.id = "__embedded_policy_group_".to_owned() + self.name.as_str() + "__";
 
         self.inline_policy = Option::Some(policy);
         self
+    }
+
+    pub fn get_identities(&self) -> &Vec<Identity> {
+        self.identities.identities.as_ref()
     }
 
     pub fn add_identity(mut self, identity: Identity) -> Self {
@@ -128,7 +134,6 @@ impl Into<Value> for Group {
 impl ToJson for Group {
     fn to_json(&self) -> Map<String, Value> {
         let linked_policies = &self.linked_policies;
-        let identities = &self.identities;
         let mut map = Map::new();
         map.insert(String::from("id"), Value::from(self.name.clone()));
         map.insert(
@@ -139,15 +144,7 @@ impl ToJson for Group {
                 Value::from(self.inline_policy.as_ref().unwrap().to_json())
             },
         );
-        map.insert(
-            String::from("identities"),
-            Value::from(
-                identities
-                    .into_iter()
-                    .map(|ref i| i.id.clone())
-                    .collect::<Vec<String>>(),
-            ),
-        );
+
         map.insert(
             String::from("linked_policies"),
             Value::from(

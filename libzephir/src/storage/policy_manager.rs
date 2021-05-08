@@ -51,7 +51,8 @@ impl StorageManager {
             r#"
             INSERT INTO policy(id, version, effect, actions, resources)
             VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT DO UPDATE SET version = $2, effect = $3, actions = $4, resources = $5
+            ON CONFLICT (id)
+            DO UPDATE SET version = $2, effect = $3, actions = $4, resources = $5
         "#,
         )
         .bind(id)

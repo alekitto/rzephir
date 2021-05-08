@@ -3,7 +3,6 @@ mod identity_manager;
 mod policy_manager;
 mod types;
 
-use sqlx;
 use sqlx::{Pool, Postgres};
 
 #[derive(Clone)]

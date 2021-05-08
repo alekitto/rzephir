@@ -1,3 +1,7 @@
+#![feature(in_band_lifetimes)]
+#[macro_use]
+extern crate lazy_static;
+
 mod err;
 mod handlers;
 
@@ -39,6 +43,14 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .service(handlers::get_status)
             .service(handlers::allowed_action)
+            .service(handlers::get_group)
+            .service(handlers::get_group_identities)
+            .service(handlers::patch_group_identities)
+            .service(handlers::upsert_group)
+            .service(handlers::get_identity)
+            .service(handlers::upsert_identity)
+            .service(handlers::get_policy)
+            .service(handlers::upsert_policy)
     })
     .bind(("0.0.0.0", get_serve_port()))?
     .run()

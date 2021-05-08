@@ -1,4 +1,4 @@
-use crate::err::Error;
+use crate::err::{Error, ErrorKind};
 use crate::policy::policy::CompletePolicy;
 use serde_json::{Number, Value};
 use std::convert::TryFrom;
@@ -57,10 +57,6 @@ impl PartialEq<i32> for PolicyVersion {
     fn eq(&self, other: &i32) -> bool {
         self.clone() as i32 == *other
     }
-
-    fn ne(&self, other: &i32) -> bool {
-        self.clone() as i32 != *other
-    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -87,13 +83,23 @@ impl From<&PolicyEffect> for bool {
     }
 }
 
+impl TryFrom<&String> for PolicyEffect {
+    type Error = Error;
+
+    fn try_from(value: &String) -> Result<Self, Self::Error> {
+        if value.eq_ignore_ascii_case("ALLOW") {
+            Ok(Self::Allow)
+        } else if value.eq_ignore_ascii_case("DENY") {
+            Ok(Self::Deny)
+        } else {
+            Err(Error::new(ErrorKind::UnknownError, "Invalid"))
+        }
+    }
+}
+
 impl PartialEq<i32> for PolicyEffect {
     fn eq(&self, other: &i32) -> bool {
         self.clone() as i32 == *other
-    }
-
-    fn ne(&self, other: &i32) -> bool {
-        self.clone() as i32 != *other
     }
 }
 

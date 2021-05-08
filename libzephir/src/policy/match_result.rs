@@ -25,6 +25,12 @@ pub struct MatchResult {
     conditions_match: Option<bool>,
 }
 
+impl Default for MatchResult {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MatchResult {
     /// Creates a new MatchResult structure
     pub fn new() -> MatchResult {
@@ -39,17 +45,17 @@ impl MatchResult {
     }
 
     /// Updates the match flag for action
-    pub(super) fn update_action(&mut self, result: bool) -> () {
+    pub(super) fn update_action(&mut self, result: bool) {
         self.action_matches = Option::Some(result);
     }
 
     /// Updates the match flag for resource
-    pub(super) fn update_resource(&mut self, result: bool) -> () {
+    pub(super) fn update_resource(&mut self, result: bool) {
         self.resource_matches = Option::Some(result);
     }
 
     /// Updates the match flag for conditions
-    pub(super) fn update_conditions(&mut self, result: bool) -> () {
+    pub(super) fn update_conditions(&mut self, result: bool) {
         self.conditions_match = Option::Some(result);
     }
 
@@ -60,6 +66,7 @@ impl MatchResult {
     }
 
     /// Whether the outcome is "match" or not
+    #[inline]
     pub fn is_match(&self) -> bool {
         self.outcome == ResultOutcome::Match
     }
@@ -70,7 +77,7 @@ impl MatchResult {
     }
 
     /// Internal: updates the result
-    pub(super) fn _update(&mut self, policy: &impl MatchablePolicy) -> () {
+    pub(super) fn _update(&mut self, policy: &impl MatchablePolicy) {
         self.partial.reset();
         self.partial.effect = policy.get_effect();
 

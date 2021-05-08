@@ -25,6 +25,12 @@ pub struct PolicySet<T: Policy> {
     policies: Vec<T>,
 }
 
+impl<T: Policy> Default for PolicySet<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Policy> PolicySet<T> {
     pub fn new() -> Self {
         PolicySet { policies: vec![] }
@@ -32,6 +38,10 @@ impl<T: Policy> PolicySet<T> {
 
     pub fn len(&self) -> usize {
         self.policies.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.policies.is_empty()
     }
 
     fn insert_if_missing(policies: &mut Vec<T>, policy: T) {

@@ -51,7 +51,7 @@ impl AllowedResult {
         }
     }
 
-    pub fn merge(&mut self, other: &Self) -> () {
+    pub fn merge(&mut self, other: &Self) {
         if other.outcome == AllowedOutcome::Denied {
             self.outcome = AllowedOutcome::Denied;
             self.partials = vec![];

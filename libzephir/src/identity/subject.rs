@@ -42,7 +42,7 @@ impl<'a, T: Subject> Iterator for SubjectIterator<'a, T> {
         let element = match self.current {
             -1 => self.subject.get_inline_policy().or_else(|| {
                 self.current += 1;
-                return self.next();
+                self.next()
             }),
             _ => self.linked_policies.get(self.current.unsigned_abs())
         };

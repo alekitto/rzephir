@@ -1,7 +1,7 @@
 use crate::err::{Error, ErrorKind, NoneError};
-use log::{log_enabled, trace, Level};
+use log::{log_enabled, trace, warn, Level};
 use mouscache::{CacheError, Cacheable};
-use regex::Regex;
+use pcre2::bytes::{Regex, RegexBuilder};
 use serde_json::Value;
 use std::any::Any;
 use std::collections::HashMap;
@@ -29,7 +29,10 @@ fn redis_obj_to_regex(obj: &HashMap<String, String>, key: &str) -> Result<Vec<Re
             return Err(Error::new(ErrorKind::UnwrapNoneValueError, NoneError {}));
         }
 
-        result.push(Regex::new(r.unwrap())?);
+        result.push(RegexBuilder::new()
+            .jit_if_available(true)
+            .build(r.unwrap())?
+        );
     }
 
     Ok(result)
@@ -75,13 +78,19 @@ impl CompiledPolicy {
     /// True if at least one match is found, false otherwise
     pub fn match_action<T: ToString>(&self, action: &T) -> bool {
         let action = action.to_string();
-        let action_str = action.as_str();
+        let action_str = action.as_bytes();
 
-        trace!("Requesting match for action {}...", action_str);
+        trace!("Requesting match for action {}...", action);
         for regex in &self.actions {
-            if regex.is_match(action_str) {
-                trace!("Regex {} matches the action {}", regex.as_str(), action_str);
-                return true;
+            let is_match = regex.is_match(action_str);
+            match is_match {
+                Err(e) => warn!("Regex {} caused an error: {}", regex.as_str(), e.to_string()),
+                Ok(result) => {
+                    if result {
+                        trace!("Regex {} matches the action {}", regex.as_str(), action);
+                        return true;
+                    }
+                }
             }
         }
 
@@ -119,14 +128,20 @@ impl CompiledPolicy {
             }
             Option::Some(resource) => Option::Some({
                 let string = resource.to_string();
-                let res = string.as_str();
+                let res = string.as_bytes();
                 let mut result = false;
 
                 for regex in &self.resources {
-                    if regex.is_match(res) {
-                        trace!("Regex {} matches the resource {}", regex.as_str(), res);
-                        result = true;
-                        break;
+                    let is_match = regex.is_match(res);
+                    match is_match {
+                        Err(e) => warn!("Regex {} caused an error: {}", regex.as_str(), e.to_string()),
+                        Ok(regex_matching) => {
+                            if regex_matching {
+                                trace!("Regex {} matches the resource {}", regex.as_str(), string);
+                                result = true;
+                                break;
+                            }
+                        }
                     }
                 }
 
@@ -157,9 +172,9 @@ impl CompiledPolicy {
         let resources = redis_obj_to_regex(&obj, "resources")?;
 
         Ok(CompiledPolicy {
-            all_resources,
             actions,
             resources,
+            all_resources,
         })
     }
 }
@@ -170,7 +185,7 @@ impl Cacheable for CompiledPolicy {
     where
         Self: Sized,
     {
-        return "zephir_cpolicy";
+        "zephir_cpolicy"
     }
 
     /// Serializes a CompiledPolicy into a redis-storable structure
@@ -209,16 +224,14 @@ impl Cacheable for CompiledPolicy {
     where
         Self: Sized,
     {
-        if obj.len() == 0 {
+        if obj.is_empty() {
             return Err(CacheError::Other(String::new()));
         }
 
-        let res = CompiledPolicy::from_redis_obj(obj);
-        if res.is_err() {
-            return Err(CacheError::Other(res.unwrap_err().to_string()));
+        match CompiledPolicy::from_redis_obj(obj) {
+            Err(err) => Err(CacheError::Other(err.to_string())),
+            Ok(res) => Ok(res)
         }
-
-        Ok(res.unwrap())
     }
 
     /// A default TTL for this element.

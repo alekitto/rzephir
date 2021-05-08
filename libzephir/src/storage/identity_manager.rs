@@ -72,7 +72,7 @@ impl StorageManager {
             r#"
             INSERT INTO identity(id, policy_id)
             VALUES ($1, $2)
-            ON CONFLICT DO UPDATE SET policy_id = $2
+            ON CONFLICT (id) DO UPDATE SET policy_id = $2
         "#,
         )
         .bind(&i.id)

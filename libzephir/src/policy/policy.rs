@@ -83,7 +83,7 @@ impl PartialPolicy {
     }
 
     /// Resets the partial policy.
-    pub fn reset(&mut self) -> () {
+    pub fn reset(&mut self) {
         self.version = PolicyVersion::Version1;
         self.actions = Option::None;
         self.resources = Option::None;
@@ -224,8 +224,8 @@ impl MatchablePolicy for CompletePolicy {
         let mut result = MatchResult::new();
         let compiled = &self.compiled_policy;
 
-        if action.is_some() {
-            result.update_action(compiled.match_action(&action.unwrap().to_string()));
+        if let Some(action) = action {
+            result.update_action(compiled.match_action(&action));
             result._update(self);
         }
 
@@ -233,9 +233,7 @@ impl MatchablePolicy for CompletePolicy {
             result.update_resource(true);
             result._update(self);
         } else if resource.is_some() {
-            let m = compiled.match_resource(resource);
-            if m.is_some() {
-                let is_match = m.unwrap();
+            if let Some(is_match) = compiled.match_resource(resource) {
                 result.update_resource(is_match);
                 result._update(self);
             }

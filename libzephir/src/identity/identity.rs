@@ -32,7 +32,7 @@ impl Identity {
     }
 
     pub fn set_inline_policy(mut self, policy: CompletePolicy) -> Self {
-        let mut policy = policy.clone();
+        let mut policy = policy;
         policy.id = "__embedded_policy_identity_".to_owned() + self.id.as_str() + "__";
 
         self.inline_policy = Option::Some(policy);
@@ -51,6 +51,12 @@ impl ToIdentityId for Identity {
 }
 
 impl ToIdentityId for String {
+    fn to_identity_id(&self) -> &String {
+        self
+    }
+}
+
+impl ToIdentityId for &String {
     fn to_identity_id(&self) -> &String {
         self
     }
