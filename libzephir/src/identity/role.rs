@@ -33,7 +33,7 @@ where
             continue;
         }
 
-        partials.push(result.get_partial().clone());
+        partials.push(result.get_partial());
     }
 
     AllowedResult::new(outcome, partials)
@@ -152,7 +152,7 @@ mod tests {
 
         let mut json = Map::new();
         json.insert(String::from("outcome"), Value::from("ABSTAIN"));
-        json.insert(String::from("partials"), Value::from(vec![partial.clone()]));
+        json.insert(String::from("partials"), Value::from(vec![partial]));
         assert_eq!(res.to_json(), json);
     }
 

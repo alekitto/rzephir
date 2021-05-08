@@ -62,12 +62,8 @@ impl TryFrom<UpsertPolicyRequest> for CompletePolicy {
             "".to_string(),
             PolicyVersion::try_from(value.version)?,
             PolicyEffect::try_from(&value.effect)?,
-            value.actions.clone(),
-            if value.resources.is_none() {
-                vec![]
-            } else {
-                value.resources.as_ref().unwrap().clone()
-            }
+            value.actions,
+            value.resources.unwrap_or_else(|| vec![])
         )
     }
 }

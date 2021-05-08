@@ -43,7 +43,7 @@ impl StorageManager {
         p: &CompletePolicy,
         transaction: &mut Transaction<'_, Postgres>,
     ) -> Result<(), Error> {
-        let id: String = p.id.clone();
+        let id = p.id.as_str();
         let version: i32 = (&p.version).into();
         let effect: bool = (&p.effect).into();
 

@@ -49,17 +49,19 @@ impl From<&PolicyVersion> for i32 {
 
 impl From<&PolicyVersion> for Value {
     fn from(value: &PolicyVersion) -> Self {
-        Value::Number(Number::from(value.clone() as i32))
+        let value: i32 = value.into();
+        Value::Number(Number::from(value))
     }
 }
 
 impl PartialEq<i32> for PolicyVersion {
     fn eq(&self, other: &i32) -> bool {
-        self.clone() as i32 == *other
+        let value: i32 = self.into();
+        value == *other
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PolicyEffect {
     Deny = 0,
     Allow = 1,
@@ -99,7 +101,8 @@ impl TryFrom<&String> for PolicyEffect {
 
 impl PartialEq<i32> for PolicyEffect {
     fn eq(&self, other: &i32) -> bool {
-        self.clone() as i32 == *other
+        let value: bool = self.into();
+        value == (*other != 0)
     }
 }
 

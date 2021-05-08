@@ -51,7 +51,7 @@ impl AllowedResult {
         }
     }
 
-    pub fn merge(&mut self, other: &Self) {
+    pub fn merge(&mut self, other: Self) {
         if other.outcome == AllowedOutcome::Denied {
             self.outcome = AllowedOutcome::Denied;
             self.partials = vec![];
@@ -65,8 +65,8 @@ impl AllowedResult {
             self.outcome = AllowedOutcome::Allowed;
         }
 
-        for p in &other.partials {
-            self.partials.push(p.clone());
+        for p in other.partials {
+            self.partials.push(p);
         }
 
         if self.outcome == AllowedOutcome::Allowed {
@@ -91,7 +91,7 @@ impl ToJson for AllowedResult {
             }),
         );
 
-        result.insert(String::from("partials"), Value::from(self.partials.clone()));
+        result.insert(String::from("partials"), Value::from(self.partials.as_slice()));
 
         result
     }
@@ -152,7 +152,7 @@ mod tests {
 
         let mut json = Map::new();
         json.insert(String::from("outcome"), Value::from("ABSTAIN"));
-        json.insert(String::from("partials"), Value::from(ar.partials.clone()));
+        json.insert(String::from("partials"), Value::from(ar.partials.as_slice()));
 
         assert_eq!(ar.outcome(), AllowedOutcome::Abstain);
         assert_eq!(ar.to_json(), json);
@@ -201,7 +201,7 @@ mod tests {
 
         let mut partial = PartialPolicy::default();
         partial.effect = PolicyEffect::Deny;
-        ar.merge(&AllowedResult::new(
+        ar.merge(AllowedResult::new(
             AllowedOutcome::Allowed,
             vec![partial.clone()],
         ));

@@ -71,7 +71,7 @@ pub fn from_string(glob: String) -> Regex {
 
     RegexBuilder::new()
         .jit_if_available(true)
-        .build(r".+")
+        .build(regex.as_str())
         .unwrap()
 }
 

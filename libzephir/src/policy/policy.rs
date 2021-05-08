@@ -55,10 +55,10 @@ pub trait MatchablePolicy: Policy {
         S: ToString + Debug;
 
     /// Gets the action of the policy.
-    fn get_actions(&self) -> Vec<String>;
+    fn get_actions(&self) -> &[String];
 
     /// Gets the resources of the policy.
-    fn get_resources(&self) -> Vec<String>;
+    fn get_resources(&self) -> &[String];
 }
 
 /// Partial policy struct
@@ -69,6 +69,12 @@ pub struct PartialPolicy {
     pub effect: PolicyEffect,
     pub actions: Option<Vec<String>>,
     pub resources: Option<Vec<String>>,
+}
+
+impl AsRef<PartialPolicy> for PartialPolicy {
+    fn as_ref(&self) -> &PartialPolicy {
+        self
+    }
 }
 
 impl PartialPolicy {
@@ -102,17 +108,17 @@ impl ToJson for PartialPolicy {
         result.insert(String::from("version"), Value::from(&self.version));
         result.insert(String::from("effect"), Value::from(&self.effect));
 
-        if self.actions.is_some() {
+        if let Some(actions) = &self.actions {
             result.insert(
                 String::from("actions"),
-                Value::from(self.actions.clone().unwrap()),
+                Value::from(actions.as_slice()),
             );
         }
 
-        if self.resources.is_some() {
+        if let Some(resources) = &self.resources {
             result.insert(
                 String::from("resources"),
-                Value::from(self.resources.clone().unwrap()),
+                Value::from(resources.as_slice()),
             );
         }
 
@@ -192,7 +198,7 @@ impl Policy for CompletePolicy {
 impl ToJson for CompletePolicy {
     fn to_json(&self) -> Map<String, Value> {
         let mut result = Map::new();
-        result.insert(String::from("id"), Value::from(self.id.clone()));
+        result.insert(String::from("id"), Value::from(self.id.as_str()));
         result.insert(String::from("version"), Value::from(&self.version));
         result.insert(
             String::from("effect"),
@@ -201,10 +207,10 @@ impl ToJson for CompletePolicy {
                 _ => "DENY",
             }),
         );
-        result.insert(String::from("actions"), Value::from(self.actions.clone()));
+        result.insert(String::from("actions"), Value::from(self.actions.as_slice()));
         result.insert(
             String::from("resources"),
-            Value::from(self.resources.clone()),
+            Value::from(self.resources.as_slice()),
         );
 
         result
@@ -213,7 +219,7 @@ impl ToJson for CompletePolicy {
 
 impl MatchablePolicy for CompletePolicy {
     fn get_effect(&self) -> PolicyEffect {
-        self.effect.clone()
+        self.effect
     }
 
     fn matching<T, S>(&self, action: Option<T>, resource: Option<S>) -> MatchResult
@@ -244,12 +250,12 @@ impl MatchablePolicy for CompletePolicy {
         result
     }
 
-    fn get_actions(&self) -> Vec<String> {
-        self.actions.clone()
+    fn get_actions(&self) -> &[String] {
+        self.actions.as_slice()
     }
 
-    fn get_resources(&self) -> Vec<String> {
-        self.resources.clone()
+    fn get_resources(&self) -> &[String] {
+        self.resources.as_slice()
     }
 }
 
@@ -354,7 +360,7 @@ mod tests {
 
     #[test]
     fn policy_matching_should_work_with_actions_question_mark_glob() {
-        cache::flush_policy(&"TestPolicy".to_string());
+        cache::flush_policy("TestPolicy");
         let policy = zephir_policy!(
             "TestPolicy",
             PolicyVersion::Version1,

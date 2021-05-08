@@ -81,8 +81,8 @@ impl Group {
         }
     }
 
-    pub fn get_name(&self) -> String {
-        self.name.clone()
+    pub fn get_name(&self) -> &String {
+        &self.name
     }
 
     pub fn clear_inline_policy(mut self) -> Self {
@@ -135,7 +135,7 @@ impl ToJson for Group {
     fn to_json(&self) -> Map<String, Value> {
         let linked_policies = &self.linked_policies;
         let mut map = Map::new();
-        map.insert(String::from("id"), Value::from(self.name.clone()));
+        map.insert(String::from("id"), Value::from(self.name.as_str()));
         map.insert(
             String::from("inline_policy"),
             if self.inline_policy.is_none() {
@@ -150,8 +150,8 @@ impl ToJson for Group {
             Value::from(
                 linked_policies
                     .into_iter()
-                    .map(|ref p| p.id.clone())
-                    .collect::<Vec<String>>(),
+                    .map(|ref p| p.id.as_str())
+                    .collect::<Vec<&str>>(),
             ),
         );
 

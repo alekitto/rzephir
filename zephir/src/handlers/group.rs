@@ -85,7 +85,7 @@ pub(crate) async fn get_group_identities(web::Path(id): web::Path<String>, stora
                 group.get_identities()
                     .iter()
                     .map(|i| i.get_id())
-                    .collect::<Vec<String>>()
+                    .collect::<Vec<&String>>()
             ))
         }
     }

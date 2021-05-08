@@ -31,6 +31,12 @@ impl Default for MatchResult {
     }
 }
 
+impl AsRef<MatchResult> for MatchResult {
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
+
 impl MatchResult {
     /// Creates a new MatchResult structure
     pub fn new() -> MatchResult {
@@ -61,8 +67,8 @@ impl MatchResult {
 
     /// Gets the partial policy.
     /// Has meaning only if result type is not full and outcome is "match"
-    pub fn get_partial(&self) -> &PartialPolicy {
-        &self.partial
+    pub fn get_partial(self) -> PartialPolicy {
+        self.partial
     }
 
     /// Whether the outcome is "match" or not
@@ -100,16 +106,16 @@ impl MatchResult {
         } else {
             self.partial = PartialPolicy {
                 version: PolicyVersion::Version1,
-                effect: self.partial.effect.clone(),
+                effect: self.partial.effect,
                 actions: if self.action_matches.is_some() {
                     None
                 } else {
-                    Option::Some(policy.get_actions())
+                    Option::Some(policy.get_actions().to_vec())
                 },
                 resources: if self.resource_matches.is_some() {
                     None
                 } else {
-                    Option::Some(policy.get_resources())
+                    Option::Some(policy.get_resources().to_vec())
                 },
             }
         }

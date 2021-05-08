@@ -153,9 +153,9 @@ mod tests {
         ps = ps.remove_policy("p2");
 
         let ps_ref = &ps;
-        let policies: Vec<String> = ps_ref
+        let policies: Vec<&str> = ps_ref
             .into_iter()
-            .map(|p: &CompletePolicy| p.id.clone())
+            .map(|p: &CompletePolicy| p.id.as_str())
             .collect();
 
         assert_eq!(policies.len(), 2);

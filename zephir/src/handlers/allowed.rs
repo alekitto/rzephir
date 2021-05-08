@@ -48,7 +48,7 @@ pub(crate) async fn allowed_action(info: web::Json<AllowedInfo>, storage: web::D
 
             let groups = storage.find_groups_for_identity(&identity).await?;
             for g in groups {
-                result.merge(&g.allowed(action, resource));
+                result.merge(g.allowed(action, resource));
             }
 
             let mut builder = if result.outcome() == AllowedOutcome::Denied { HttpResponse::Forbidden() } else { HttpResponse::Ok() };
