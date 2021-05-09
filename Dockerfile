@@ -8,7 +8,7 @@ RUN cargo build --release
 
 FROM scratch as runtime
 
-COPY --from=builder /app/target/release/rzephir /usr/local/bin
+COPY --from=builder /app/target/release/rzephir /usr/local/bin/
 
 USER 1000
-ENTRYPOINT ["./usr/local/bin/rzephir"]
+ENTRYPOINT ["/usr/local/bin/rzephir"]
