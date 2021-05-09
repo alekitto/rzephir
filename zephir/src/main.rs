@@ -9,6 +9,7 @@ use actix_web::middleware::Logger;
 use actix_web::{App, HttpServer};
 use sqlx::postgres::PgPoolOptions;
 use libzephir::storage::StorageManager;
+use libzephir::err::{Error, ErrorKind};
 
 fn get_serve_port() -> u16 {
     let serve_port = std::env::var("SERVE_PORT");
@@ -24,13 +25,26 @@ fn get_serve_port() -> u16 {
     }
 }
 
+fn get_db_connection_string() -> Result<String, Error> {
+    match std::env::var("DSN") {
+        Result::Ok(dsn) => {
+            if dsn.is_empty() {
+                Err(Error::new(ErrorKind::UnknownError, "Database DSN is empty. Please set DSN env var to a non-empty value"))
+            } else {
+                Ok(dsn.clone())
+            }
+        }
+        Result::Err(_) => Err(Error::new(ErrorKind::UnknownError, "Database DSN not set. Please set DSN env var")),
+    }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
 
     let pool = PgPoolOptions::new()
         .max_connections(5)
-        .connect("postgres://postgres@localhost:30042/zephir")
+        .connect(get_db_connection_string()?.as_str())
         .await
         .unwrap();
 
@@ -55,22 +69,4 @@ async fn main() -> std::io::Result<()> {
     .bind(("0.0.0.0", get_serve_port()))?
     .run()
     .await
-    //
-    // let manager = StorageManager::new(pool);
-    // let identity = manager
-    //     .find_identity("urn:giocaresport::::identity:aec8b9dd-84a3-409f-aa44-72b991463ab6")
-    //     .await
-    //     .unwrap();
-    //
-    // let identity = manager
-    //     .find_identity("urn:giocaresport::::identity:aec8b9dd-84a3-409f-aa44-72b991463ab6")
-    //     .await
-    //     .unwrap();
-    //
-    // let identity = manager
-    //     .find_identity("urn:giocaresport::::identity:aa9f5701-4729-4e9c-a694-f97fc4d39a94")
-    //     .await
-    //     .unwrap();
-    //
-    // println!("{:#?}", identity.unwrap().allowed::<&str, String>(Option::Some("core:GetSport"), Option::None));
 }
