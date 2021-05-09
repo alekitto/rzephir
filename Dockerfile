@@ -7,6 +7,7 @@ RUN cargo build --release
 
 FROM bitnami/minideb:buster as runtime
 
+RUN install_packages libssl1.1 ca-certificates
 COPY --from=builder /app/target/release/rzephir /usr/local/bin/
 
 USER 1000
